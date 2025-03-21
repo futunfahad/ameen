@@ -4,11 +4,12 @@ import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 
+import colors from "../config/colors";
 const CustomDrawer = (props) => {
   const navigation = useNavigation();
 
   const menuItems = [
-    { name: "الشاشة الرئيسية", icon: "home", route: "Home" },
+    { name: "الشاشة الرئيسية", icon: "home", route: "HomeScreen" },
     { name: "الإشعارات", icon: "bell", route: "Notifications" },
     { name: "السجلات", icon: "file-document", route: "Records" },
     { name: "التقويم", icon: "calendar", route: "Calendar" },
@@ -31,7 +32,12 @@ const CustomDrawer = (props) => {
       <DrawerContentScrollView {...props}>
         {menuItems.map((item, index) => (
           <View key={index} style={styles.menuItem}>
-            <Icon name={item.icon} size={24} color="#000" style={styles.icon} />
+            <Icon
+              name={item.icon}
+              size={24}
+              color={colors.medium}
+              style={styles.icon}
+            />
             <DrawerItem
               label={item.name}
               onPress={() => navigation.navigate(item.route)}
@@ -49,7 +55,7 @@ export default CustomDrawer;
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: "#2C3E50",
+    backgroundColor: colors.secondary,
     paddingVertical: 30,
     alignItems: "center",
   },
@@ -74,7 +80,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "right", // Aligns text to the right
     flex: 1, // Ensures text does not disappear
-    color: "#000",
+    color: colors.dark,
   },
   drawerItem: {
     flex: 1,

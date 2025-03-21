@@ -12,24 +12,14 @@ import HomeScreen from "../screens/HomeScreen";
 
 const Tab = createBottomTabNavigator();
 
-const CustomHeader = () => (
-  <View style={styles.headerContainer}>
-    <View style={styles.logoContainer}>
-      <Image source={require("../assets/logo.png")} style={styles.logo} />
-    </View>
-  </View>
-);
-
 const AppNavigator = () => (
   <Tab.Navigator
     screenOptions={{
-      headerTitle: () => <CustomHeader />, // Uses custom header with logo
-      headerStyle: {
-        backgroundColor: "transparent", // Makes header blend with background
-        elevation: 0, // Removes shadow on Android
-        shadowOpacity: 0, // Removes shadow on iOS
+      headerShown: false, // ✅ No header shown on bottom tab screens
+      tabBarStyle: {
+        backgroundColor: "#fff",
+        borderTopColor: "#ccc",
       },
-      headerTransparent: true, // Ensures full transparency
     }}
   >
     <Tab.Screen

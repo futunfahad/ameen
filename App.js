@@ -18,48 +18,46 @@ import AccountNavigator from "./app/navigation/AccountNavigator";
 
 import WelcomeScreen from "./app/screens/WelcomeScreen";
 */
-import CustomDrawer from "./app/components/CustomDrawer";
 import "react-native-gesture-handler";
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
-import AppNavigator from "./app/navigation/AppNavigator";
-import { View, Text, TouchableOpacity, I18nManager } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  I18nManager,
+} from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 
-// Force RTL layout (ensures drawer swipes from right)
+import CustomDrawer from "./app/components/CustomDrawer";
+import AppNavigator from "./app/navigation/AppNavigator";
+import NotificationsScreen from "./app/screens/ListingEditScreen";
+import RecordsScreen from "./app/screens/ListingEditScreen";
+import CalendarScreen from "./app/screens/ListingEditScreen";
+import colors from "./app/config/colors";
+
+// RTL support
 if (!I18nManager.isRTL) {
   I18nManager.forceRTL(true);
   I18nManager.allowRTL(true);
 }
 
-// Create Drawer Navigator
 const Drawer = createDrawerNavigator();
 
-// Dummy Screens
-const HomeScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <Text>الشاشة الرئيسية</Text>
-  </View>
-);
-const NotificationsScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <Text>الإشعارات</Text>
-  </View>
-);
-const RecordsScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <Text>السجلات</Text>
-  </View>
-);
-const CalendarScreen = () => (
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-    <Text>التقويم</Text>
+// ✅ Add your logo as a custom header
+const CustomHeader = () => (
+  <View style={styles.headerContainer}>
+    <View style={styles.logoContainer}>
+      <Image source={require("./app/assets/logo.png")} style={styles.logo} />
+    </View>
   </View>
 );
 
-// Custom Header Menu Button (Right Side)
+// ✅ Optional custom header right (hamburger)
 const CustomHeaderRight = () => {
   const navigation = useNavigation();
   return (
@@ -67,7 +65,7 @@ const CustomHeaderRight = () => {
       onPress={() => navigation.openDrawer()}
       style={{ marginRight: 15 }}
     >
-      <Icon name="menu" size={28} color="#fff" />
+      <Icon name="menu" size={28} color={colors.secondary} />
     </TouchableOpacity>
   );
 };
@@ -78,16 +76,31 @@ export default function App() {
       <Drawer.Navigator
         drawerContent={(props) => <CustomDrawer {...props} />}
         screenOptions={{
-          drawerPosition: "right", // Swipes drawer from right
-          headerStyle: { backgroundColor: "#2C3E50" },
-          headerTintColor: "#fff",
+          drawerPosition: "right",
+          headerStyle: { backgroundColor: colors.white },
+          headerTintColor: colors.secondary,
           headerTitleAlign: "center",
-          headerTitle: "تطبيقي", // Arabic App Title
-          headerRight: () => <CustomHeaderRight />, // Moves hamburger to right
-          headerLeft: () => null, // Removes duplicate left-side hamburger
+
+          // ✅ Show screen name as title
+          headerTitle: ({ children }) => (
+            <Text style={styles.headerTitle}>{children}</Text>
+          ),
+
+          // ✅ Show logo on the left
+          headerLeft: () => (
+            <View style={styles.logoWrapper}>
+              <Image
+                source={require("./app/assets/logo.png")}
+                style={styles.logo}
+              />
+            </View>
+          ),
+
+          // ✅ Show hamburger menu on the right
+          headerRight: () => <CustomHeaderRight />,
         }}
       >
-        <Drawer.Screen name="Home" component={AppNavigator} />
+        <Drawer.Screen name="HomeScreen" component={AppNavigator} />
         <Drawer.Screen name="Notifications" component={NotificationsScreen} />
         <Drawer.Screen name="Records" component={RecordsScreen} />
         <Drawer.Screen name="Calendar" component={CalendarScreen} />
@@ -95,6 +108,21 @@ export default function App() {
     </NavigationContainer>
   );
 }
+const styles = StyleSheet.create({
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.secondary,
+  },
+  logoWrapper: {
+    marginLeft: 15,
+  },
+  logo: {
+    width: 35,
+    height: 35,
+    resizeMode: "contain",
+  },
+});
 
 /*
 export default function App() {
