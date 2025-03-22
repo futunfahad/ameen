@@ -10,7 +10,7 @@ function NewListingButton({ onPress }) {
       <View style={styles.button}>
         <MaterialCommunityIcons
           name="calendar-month-outline"
-          color={colors.primary}
+          color={colors.secondary}
           size={50}
         />
       </View>

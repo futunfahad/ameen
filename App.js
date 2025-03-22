@@ -1,7 +1,5 @@
 import "react-native-gesture-handler";
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createDrawerNavigator } from "@react-navigation/drawer";
 import {
   View,
   Text,
@@ -11,35 +9,49 @@ import {
   I18nManager,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import { createDrawerNavigator } from "@react-navigation/drawer";
 
 import CustomDrawer from "./app/components/CustomDrawer";
 import AppNavigator from "./app/navigation/AppNavigator";
 import NotificationsScreen from "./app/screens/ListingEditScreen";
 import RecordsScreen from "./app/screens/ListingEditScreen";
 import CalendarScreen from "./app/screens/ListingEditScreen";
-import colors from "./app/config/colors";
-import AuthNavigator from "./app/navigation/AuthNavigator";
 import TranscriptionScreen from "./app/screens/TranscriptionScreen";
+import colors from "./app/config/colors";
 
 // RTL support
 if (!I18nManager.isRTL) {
-  I18nManager.forceRTL(true);
   I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
 }
 
 const Drawer = createDrawerNavigator();
+const CustomHeaderLeft = ({ tintColor }) => {
+  const navigation = useNavigation();
+  const canGoBack = navigation.canGoBack();
 
-// ✅ Add your logo as a custom header
-const CustomHeader = () => (
-  <View style={styles.headerContainer}>
-    <View style={styles.logoContainer}>
-      <Image source={require("./app/assets/logo.png")} style={styles.logo} />
+  return (
+    <View style={styles.headerLeftContainer}>
+      {canGoBack ? (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+        >
+          <Icon
+            name={I18nManager.isRTL ? "arrow-right" : "arrow-left"}
+            size={24}
+            color={tintColor || colors.secondary}
+          />
+        </TouchableOpacity>
+      ) : (
+        <Image source={require("./app/assets/logo.png")} style={styles.logo} />
+      )}
     </View>
-  </View>
-);
+  );
+};
 
-// ✅ Optional custom header right (hamburger)
+// ✅ Hamburger menu on the right
 const CustomHeaderRight = () => {
   const navigation = useNavigation();
   return (
@@ -63,22 +75,10 @@ export default function App() {
           headerTintColor: colors.secondary,
           headerTitleAlign: "center",
 
-          // ✅ Show screen name as title
           headerTitle: ({ children }) => (
             <Text style={styles.headerTitle}>{children}</Text>
           ),
-
-          // ✅ Show logo on the left
-          headerLeft: () => (
-            <View style={styles.logoWrapper}>
-              <Image
-                source={require("./app/assets/logo.png")}
-                style={styles.logo}
-              />
-            </View>
-          ),
-
-          // ✅ Show hamburger menu on the right
+          headerLeft: () => <CustomHeaderLeft />,
           headerRight: () => <CustomHeaderRight />,
         }}
       >
@@ -90,19 +90,25 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
 const styles = StyleSheet.create({
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colors.secondary,
+  headerLeftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
   },
-  logoWrapper: {
-    marginLeft: 15,
+  iconButton: {
+    marginRight: 10,
   },
   logo: {
     width: 35,
     height: 35,
     resizeMode: "contain",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.secondary,
   },
 });
 

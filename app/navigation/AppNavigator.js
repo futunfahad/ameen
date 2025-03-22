@@ -1,25 +1,27 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { View, StyleSheet, Image } from "react-native";
 
 import AccountNavigator from "./AccountNavigator";
-import FeedNavigator from "./FeedNavigator";
 import ListingEditScreen from "../screens/ListingEditScreen";
-import NewListingButton from "./NewListingButton";
 import routes from "./routes";
 import HomeScreen from "../screens/HomeScreen";
+import MeetingSummaryScreen from "../screens/MeetingSummaryScreen";
+import NewListingButton from "./NewListingButton"; // make sure this is set up
+import colors from "../config/colors";
 
 const Tab = createBottomTabNavigator();
 
 const AppNavigator = () => (
   <Tab.Navigator
     screenOptions={{
-      headerShown: false, // ✅ No header shown on bottom tab screens
+      headerShown: false,
       tabBarStyle: {
         backgroundColor: "#fff",
         borderTopColor: "#ccc",
       },
+      tabBarActiveTintColor: colors.secondary, // ✅ Active icon color
+      tabBarInactiveTintColor: "#999", // Optional inactive color
     }}
   >
     <Tab.Screen
@@ -31,13 +33,15 @@ const AppNavigator = () => (
         ),
       }}
     />
+
     <Tab.Screen
       name="ListingEdit"
       component={ListingEditScreen}
       options={({ navigation }) => ({
-        tabBarButton: () => (
+        tabBarButton: (props) => (
           <NewListingButton
             onPress={() => navigation.navigate(routes.LISTING_EDIT)}
+            active={props.accessibilityState?.selected} // ✅ detects active tab
           />
         ),
         tabBarIcon: ({ color, size }) => (
@@ -45,6 +49,7 @@ const AppNavigator = () => (
         ),
       })}
     />
+
     <Tab.Screen
       name="Account"
       component={AccountNavigator}
@@ -56,25 +61,5 @@ const AppNavigator = () => (
     />
   </Tab.Navigator>
 );
-
-const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-end", // Moves logo to the right
-    alignItems: "center",
-    paddingRight: 15, // Adjust spacing from the right
-    width: "100%",
-  },
-  logoContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.3)", // Semi-transparent background for visibility
-    padding: 8,
-    borderRadius: 10,
-  },
-  logo: {
-    width: 50, // Adjust width
-    height: 50, // Adjust height
-    resizeMode: "contain",
-  },
-});
 
 export default AppNavigator;
