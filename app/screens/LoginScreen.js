@@ -10,14 +10,17 @@ const validationSchema = Yup.object().shape({
   password: Yup.string().required().min(4).label("Password"),
 });
 
-function LoginScreen(props) {
+function LoginScreen({ setIsLoggedIn }) {
   return (
     <Screen style={styles.container}>
       <Image style={styles.logo} source={require("../assets/logo.png")} />
 
       <Form
         initialValues={{ email: "", password: "" }}
-        onSubmit={(values) => console.log(values)}
+        onSubmit={(values) => {
+          console.log(values);
+          setIsLoggedIn(true); // ✅ move to app
+        }}
         validationSchema={validationSchema}
       >
         <FormField
@@ -26,7 +29,7 @@ function LoginScreen(props) {
           icon="email"
           keyboardType="email-address"
           name="email"
-          placeholder="Email"
+          placeholder="ايميل"
           textContentType="emailAddress"
         />
         <FormField
@@ -34,11 +37,11 @@ function LoginScreen(props) {
           autoCorrect={false}
           icon="lock"
           name="password"
-          placeholder="Password"
+          placeholder="الرقم السري"
           secureTextEntry
           textContentType="password"
         />
-        <SubmitButton title="Login" />
+        <SubmitButton title="تسجيل دخول" onSubmit />
       </Form>
     </Screen>
   );

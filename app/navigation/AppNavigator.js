@@ -2,13 +2,13 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import AccountNavigator from "./AccountNavigator";
-import ListingEditScreen from "../screens/ListingEditScreen";
 import routes from "./routes";
 import HomeScreen from "../screens/HomeScreen";
-import MeetingSummaryScreen from "../screens/MeetingSummaryScreen";
+
 import NewListingButton from "./NewListingButton"; // make sure this is set up
 import colors from "../config/colors";
+import CalendarScreen from "../screens/CalendarScreen";
+import AccountScreen from "../screens/AccountScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -35,12 +35,12 @@ const AppNavigator = () => (
     />
 
     <Tab.Screen
-      name="ListingEdit"
-      component={ListingEditScreen}
+      name="calander"
+      component={CalendarScreen}
       options={({ navigation }) => ({
         tabBarButton: (props) => (
           <NewListingButton
-            onPress={() => navigation.navigate(routes.LISTING_EDIT)}
+            onPress={() => navigation.navigate("calander")}
             active={props.accessibilityState?.selected} // ✅ detects active tab
           />
         ),
@@ -52,7 +52,7 @@ const AppNavigator = () => (
 
     <Tab.Screen
       name="Account"
-      component={AccountNavigator}
+      component={AccountScreen}
       options={{
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons name="account" color={color} size={size} />

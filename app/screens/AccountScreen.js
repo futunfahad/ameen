@@ -1,45 +1,54 @@
 import React from "react";
-import { StyleSheet, View, FlatList } from "react-native";
+import { View, StyleSheet, FlatList, Alert } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { ListItem, ListItemSeparator } from "../components/lists";
+import { ListItem } from "../components/lists";
+import Screen from "../components/Screen";
 import colors from "../config/colors";
 import Icon from "../components/Icon";
-import routes from "../navigation/routes";
-import Screen from "../components/Screen";
+
+const user = {
+  name: "اسم المستخدم",
+  email: "user@example.com",
+  image: require("../assets/user.png"), // 👤 use your own image asset
+};
 
 const menuItems = [
   {
-    title: "My Listings",
+    title: "قائمتي",
     icon: {
       name: "format-list-bulleted",
       backgroundColor: colors.primary,
     },
+    targetScreen: "MyListings",
   },
   {
-    title: "My Messages",
+    title: "الرسائل",
     icon: {
       name: "email",
       backgroundColor: colors.secondary,
     },
-    targetScreen: routes.MESSAGES,
+    targetScreen: "Messages",
   },
 ];
 
 function AccountScreen({ navigation }) {
+  const handleLogout = () => {
+    Alert.alert("تم تسجيل الخروج");
+    // TODO: clear auth state
+  };
+
   return (
     <Screen style={styles.screen}>
       <View style={styles.container}>
-        <ListItem
-          title="Mosh Hamedani"
-          subTitle="programmingwithmosh@gmail.com"
-          image={require("../assets/mosh.jpg")}
-        />
+        <ListItem title={user.name} subTitle={user.email} image={user.image} />
       </View>
+
       <View style={styles.container}>
         <FlatList
           data={menuItems}
-          keyExtractor={(menuItem) => menuItem.title}
-          ItemSeparatorComponent={ListItemSeparator}
+          keyExtractor={(item) => item.title}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
             <ListItem
               title={item.title}
@@ -54,9 +63,11 @@ function AccountScreen({ navigation }) {
           )}
         />
       </View>
+
       <ListItem
-        title="Log Out"
+        title="تسجيل خروج"
         IconComponent={<Icon name="logout" backgroundColor="#ffe66d" />}
+        onPress={handleLogout}
       />
     </Screen>
   );
@@ -68,6 +79,10 @@ const styles = StyleSheet.create({
   },
   container: {
     marginVertical: 20,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.light,
   },
 });
 

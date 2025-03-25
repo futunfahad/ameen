@@ -11,12 +11,15 @@ const validationSchema = Yup.object().shape({
   password: Yup.string().required().min(4).label("Password"),
 });
 
-function RegisterScreen() {
+function RegisterScreen({ setIsLoggedIn }) {
   return (
     <Screen style={styles.container}>
       <Form
         initialValues={{ name: "", email: "", password: "" }}
-        onSubmit={(values) => console.log(values)}
+        onSubmit={(values) => {
+          console.log(values);
+          setIsLoggedIn(true); // ✅ move to app
+        }}
         validationSchema={validationSchema}
       >
         <FormField
@@ -43,7 +46,7 @@ function RegisterScreen() {
           secureTextEntry
           textContentType="password"
         />
-        <SubmitButton title="Register" />
+        <SubmitButton title="تسجيل حساب جديد" />
       </Form>
     </Screen>
   );

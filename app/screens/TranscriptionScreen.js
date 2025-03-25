@@ -8,11 +8,14 @@ import {
   Image,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native"; // ✅ Add this
 
 import colors from "../config/colors";
 import AppText from "../components/Text";
 
 export default function TranscriptionScreen() {
+  const navigation = useNavigation(); // ✅ Hook for navigation
+
   const handleLeftIconPress = () => {
     Alert.alert("رجوع", "تم الضغط على زر الرجوع");
   };
@@ -25,6 +28,10 @@ export default function TranscriptionScreen() {
     Alert.alert("تشغيل الصوت", "جاري تشغيل التسجيل الصوتي");
   };
 
+  const handleNavigateToSummary = () => {
+    navigation.navigate("Summary"); // ✅ Navigates to MeetingSummaryScreen
+  };
+
   return (
     <View style={styles.container}>
       {/* Title */}
@@ -32,7 +39,7 @@ export default function TranscriptionScreen() {
         النص المستخرج من اجتماعك
       </AppText>
 
-      {/* Audio Row: Play icon + waveform */}
+      {/* Audio Row */}
       <View style={styles.audioRow}>
         <Image
           source={require("../assets/audio.png")}
@@ -47,9 +54,8 @@ export default function TranscriptionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Card with Icons & Input */}
+      {/* Card */}
       <View style={styles.card}>
-        {/* Top Icons */}
         <View style={styles.iconRow}>
           <TouchableOpacity
             onPress={handleLeftIconPress}
@@ -65,7 +71,6 @@ export default function TranscriptionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Text Input fills the rest */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -76,6 +81,14 @@ export default function TranscriptionScreen() {
           />
         </View>
       </View>
+
+      {/* ✅ Bottom Button */}
+      <TouchableOpacity
+        style={styles.summaryButton}
+        onPress={handleNavigateToSummary}
+      >
+        <AppText style={styles.buttonText}>الذهاب إلى الملخص</AppText>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -99,7 +112,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 10,
     padding: 15,
-    marginBottom: 50,
+    marginBottom: 20,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -124,5 +137,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
     textAlignVertical: "top",
+  },
+  summaryButton: {
+    backgroundColor: colors.secondary,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

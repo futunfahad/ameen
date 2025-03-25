@@ -1,10 +1,13 @@
 import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native"; // ✅ Add this
 
 import colors from "../config/colors";
 
 function HomeScreen(props) {
+  const navigation = useNavigation(); // ✅ Hook to access navigation
+
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.button}>
@@ -12,6 +15,7 @@ function HomeScreen(props) {
           name="microphone-outline"
           color={colors.primary}
           size={150}
+          onPress={() => navigation.navigate("Transcription")}
         />
       </TouchableOpacity>
     </View>

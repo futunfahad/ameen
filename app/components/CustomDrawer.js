@@ -10,8 +10,14 @@ const CustomDrawer = (props) => {
 
   const menuItems = [
     { name: "الشاشة الرئيسية", icon: "home", route: "HomeScreen" },
-    { name: "الإشعارات", icon: "bell", route: "Notifications" },
-    { name: "السجلات", icon: "file-document", route: "Records" },
+    {
+      name: "صفحة النص المستخرج",
+      icon: "file-document-outline",
+      route: "Transcription",
+    },
+    { name: "الملخص", icon: "file-chart-outline", route: "Summary" },
+    { name: "سجل المحفوظات", icon: "history", route: "History" },
+
     { name: "التقويم", icon: "calendar", route: "Calendar" },
   ];
 

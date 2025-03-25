@@ -1,3 +1,147 @@
+import React, { useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+
+import AuthNavigator from "./app/navigation/AuthNavigator"; // ✅ your auth stack
+import CustomDrawer from "./app/components/CustomDrawer";
+import AppNavigator from "./app/navigation/AppNavigator";
+import CalendarScreen from "./app/screens/CalendarScreen";
+import TranscriptionScreen from "./app/screens/TranscriptionScreen";
+import colors from "./app/config/colors";
+import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
+import HistoryScreen from "./app/screens/HistoryScreen";
+import navigationTheme from "./app/navigation/navigationTheme";
+import { createDrawerNavigator } from "@react-navigation/drawer";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  I18nManager,
+} from "react-native";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { useNavigation } from "@react-navigation/native";
+
+const Drawer = createDrawerNavigator();
+
+// RTL
+if (!I18nManager.isRTL) {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+}
+
+const CustomHeaderLeft = ({ tintColor }) => {
+  const navigation = useNavigation();
+  const canGoBack = navigation.canGoBack();
+
+  return (
+    <View style={styles.headerLeftContainer}>
+      {canGoBack ? (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+        >
+          <Icon
+            name={I18nManager.isRTL ? "arrow-right" : "arrow-left"}
+            size={24}
+            color={tintColor || colors.secondary}
+          />
+        </TouchableOpacity>
+      ) : (
+        <Image source={require("./app/assets/logo.png")} style={styles.logo} />
+      )}
+    </View>
+  );
+};
+
+const CustomHeaderRight = () => {
+  const navigation = useNavigation();
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.openDrawer()}
+      style={{ marginRight: 15 }}
+    >
+      <Icon name="menu" size={28} color={colors.secondary} />
+    </TouchableOpacity>
+  );
+};
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // 🔐 controls auth flow
+
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      {isLoggedIn ? (
+        <Drawer.Navigator
+          drawerContent={(props) => <CustomDrawer {...props} />}
+          screenOptions={{
+            drawerPosition: "right",
+            headerStyle: { backgroundColor: colors.white },
+            headerTintColor: colors.secondary,
+            headerTitleAlign: "center",
+            headerTitle: ({ children }) => (
+              <Text style={styles.headerTitle}>{children}</Text>
+            ),
+            headerLeft: () => <CustomHeaderLeft />,
+            headerRight: () => <CustomHeaderRight />,
+          }}
+        >
+          <Drawer.Screen
+            name="HomeScreen"
+            component={AppNavigator}
+            options={{ title: "الشاشة الرئيسية" }}
+          />
+          <Drawer.Screen
+            name="Transcription"
+            component={TranscriptionScreen}
+            options={{ title: "صفحة النص المستخرج" }}
+          />
+          <Drawer.Screen
+            name="History"
+            component={HistoryScreen}
+            options={{ title: "سجل المحفوظات" }}
+          />
+          <Drawer.Screen
+            name="Summary"
+            component={MeetingSummaryScreen}
+            options={{ title: "ملخص الاجتماع" }}
+          />
+          <Drawer.Screen
+            name="Calendar"
+            component={CalendarScreen}
+            options={{ title: "التقويم" }}
+          />
+        </Drawer.Navigator>
+      ) : (
+        <AuthNavigator setIsLoggedIn={setIsLoggedIn} /> // 👈 pass function
+      )}
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerLeftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  iconButton: {
+    marginRight: 10,
+  },
+  logo: {
+    width: 35,
+    height: 35,
+    resizeMode: "contain",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.secondary,
+  },
+});
+
+/*
+final log in screen 
 import "react-native-gesture-handler";
 import React from "react";
 import {
@@ -14,11 +158,12 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 
 import CustomDrawer from "./app/components/CustomDrawer";
 import AppNavigator from "./app/navigation/AppNavigator";
-import NotificationsScreen from "./app/screens/ListingEditScreen";
-import RecordsScreen from "./app/screens/ListingEditScreen";
-import CalendarScreen from "./app/screens/ListingEditScreen";
+import CalendarScreen from "./app/screens/CalendarScreen";
 import TranscriptionScreen from "./app/screens/TranscriptionScreen";
 import colors from "./app/config/colors";
+import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
+import HistoryScreen from "./app/screens/HistoryScreen";
+import navigationTheme from "./app/navigation/navigationTheme";
 
 // RTL support
 if (!I18nManager.isRTL) {
@@ -66,7 +211,7 @@ const CustomHeaderRight = () => {
 
 export default function App() {
   return (
-    <NavigationContainer>
+    <NavigationContainer them={navigationTheme}>
       <Drawer.Navigator
         drawerContent={(props) => <CustomDrawer {...props} />}
         screenOptions={{
@@ -82,10 +227,31 @@ export default function App() {
           headerRight: () => <CustomHeaderRight />,
         }}
       >
-        <Drawer.Screen name="HomeScreen" component={AppNavigator} />
-        <Drawer.Screen name="Notifications" component={TranscriptionScreen} />
-        <Drawer.Screen name="Records" component={RecordsScreen} />
-        <Drawer.Screen name="Calendar" component={CalendarScreen} />
+        <Drawer.Screen
+          name="HomeScreen"
+          component={AppNavigator}
+          options={{ title: "الشاشة الرئيسية" }}
+        />
+        <Drawer.Screen
+          name="Transcription"
+          component={TranscriptionScreen}
+          options={{ title: "صفحة النص المستخرج" }}
+        />
+        <Drawer.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{ title: "سجل المحفوظات" }}
+        />
+        <Drawer.Screen
+          name="Summary"
+          component={MeetingSummaryScreen}
+          options={{ title: "ملخص الاجتماع" }}
+        />
+        <Drawer.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{ title: "التقويم" }}
+        />
       </Drawer.Navigator>
     </NavigationContainer>
   );
@@ -112,119 +278,8 @@ const styles = StyleSheet.create({
   },
 });
 
-/*
-final log in screen 
-import "react-native-gesture-handler";
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createDrawerNavigator } from "@react-navigation/drawer";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  I18nManager,
-} from "react-native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
-
-import CustomDrawer from "./app/components/CustomDrawer";
-import AppNavigator from "./app/navigation/AppNavigator";
-import NotificationsScreen from "./app/screens/ListingEditScreen";
-import RecordsScreen from "./app/screens/ListingEditScreen";
-import CalendarScreen from "./app/screens/ListingEditScreen";
-import colors from "./app/config/colors";
-import AuthNavigator from "./app/navigation/AuthNavigator";
-
-// RTL support
-if (!I18nManager.isRTL) {
-  I18nManager.forceRTL(true);
-  I18nManager.allowRTL(true);
-}
-
-const Drawer = createDrawerNavigator();
-
-// ✅ Add your logo as a custom header
-const CustomHeader = () => (
-  <View style={styles.headerContainer}>
-    <View style={styles.logoContainer}>
-      <Image source={require("./app/assets/logo.png")} style={styles.logo} />
-    </View>
-  </View>
-);
-
-// ✅ Optional custom header right (hamburger)
-const CustomHeaderRight = () => {
-  const navigation = useNavigation();
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.openDrawer()}
-      style={{ marginRight: 15 }}
-    >
-      <Icon name="menu" size={28} color={colors.secondary} />
-    </TouchableOpacity>
-  );
-};
-
-export default function App() {
-  return (
-    
-  )
- <NavigationContainer>
-      <Drawer.Navigator
-        drawerContent={(props) => <CustomDrawer {...props} />}
-        screenOptions={{
-          drawerPosition: "right",
-          headerStyle: { backgroundColor: colors.white },
-          headerTintColor: colors.secondary,
-          headerTitleAlign: "center",
-
-          // ✅ Show screen name as title
-          headerTitle: ({ children }) => (
-            <Text style={styles.headerTitle}>{children}</Text>
-          ),
-
-          // ✅ Show logo on the left
-          headerLeft: () => (
-            <View style={styles.logoWrapper}>
-              <Image
-                source={require("./app/assets/logo.png")}
-                style={styles.logo}
-              />
-            </View>
-          ),
-
-          // ✅ Show hamburger menu on the right
-          headerRight: () => <CustomHeaderRight />,
-        }}
-      >
-        <Drawer.Screen name="HomeScreen" component={AuthNavigator} />
-        <Drawer.Screen name="Notifications" component={NotificationsScreen} />
-        <Drawer.Screen name="Records" component={RecordsScreen} />
-        <Drawer.Screen name="Calendar" component={CalendarScreen} />
-      </Drawer.Navigator>
-    </NavigationContainer>
-  );
-}
-const styles = StyleSheet.create({
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colors.secondary,
-  },
-  logoWrapper: {
-    marginLeft: 15,
-  },
-  logo: {
-    width: 35,
-    height: 35,
-    resizeMode: "contain",
-  },
-});
-
-
   */
+
 /*
 export default function App() {
   return (
@@ -266,3 +321,7 @@ export default function App() {
       change imageinput result.assets[0].uri
     /> */
 }
+
+/*
+
+*/

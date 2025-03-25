@@ -9,11 +9,14 @@ import {
   ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native"; // ✅ Add this
 
 import colors from "../config/colors"; // adjust path if needed
 import AppText from "../components/Text"; // adjust path if needed
 
 export default function MeetingSummaryScreen() {
+  const navigation = useNavigation(); // ✅ Hook to use navigation
+
   const [isExpanded1, setIsExpanded1] = useState(false);
   const [isExpanded2, setIsExpanded2] = useState(false);
   const [input1, setInput1] = useState("");
@@ -30,7 +33,9 @@ export default function MeetingSummaryScreen() {
   const handlePlayPress = () => {
     Alert.alert("تشغيل الصوت", "جاري تشغيل التسجيل الصوتي");
   };
-
+  const handleNavigateToHistory = () => {
+    navigation.navigate("History"); // ✅ Navigates to MeetingSummaryScreen
+  };
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Audio Row */}
@@ -85,19 +90,7 @@ export default function MeetingSummaryScreen() {
             nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
             scrollEnabled={!isExpanded1}
-          >
-            <TextInput
-              style={[styles.input, isExpanded1 && { minHeight: 100 }]}
-              placeholder="اكتب هنا..."
-              placeholderTextColor="#888"
-              multiline
-              textAlign="right"
-              scrollEnabled={false}
-              textAlignVertical="top"
-              value={input1}
-              onChangeText={setInput1}
-            />
-          </ScrollView>
+          ></ScrollView>
         </View>
       </View>
 
@@ -164,12 +157,32 @@ export default function MeetingSummaryScreen() {
         </View>
       </View>
 
-      <View style={{ height: 100 }} />
+      <View style={{ height: 100 }}>
+        {/* ✅ Bottom Navigation Button */}
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={handleNavigateToHistory}
+        >
+          <AppText style={styles.buttonText}>عرض سجل المحفوظات</AppText>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  historyButton: {
+    backgroundColor: colors.secondary,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 0,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
   container: {
     flex: 1,
     backgroundColor: "#f2f2f2",
