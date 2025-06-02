@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import routes from "./routes";
 import HomeScreen from "../screens/HomeScreen";
 
-import NewListingButton from "./NewListingButton"; // make sure this is set up
+import CalanderButton from "./CalanderButton"; // make sure this is set up
 import colors from "../config/colors";
 import CalendarScreen from "../screens/CalendarScreen";
 import AccountScreen from "../screens/AccountScreen";
@@ -39,7 +39,7 @@ const AppNavigator = () => (
       component={CalendarScreen}
       options={({ navigation }) => ({
         tabBarButton: (props) => (
-          <NewListingButton
+          <CalanderButton
             onPress={() => navigation.navigate("calander")}
             active={props.accessibilityState?.selected} // ✅ detects active tab
           />
