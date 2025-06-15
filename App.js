@@ -13,7 +13,6 @@ import { MeetingProvider } from "./app/context/MeetingContext";
 import colors from "./app/config/colors";
 import navigationTheme from "./app/navigation/navigationTheme";
 
-<<<<<<< HEAD
 // Screens and Navigators
 import WelcomeScreen from "./app/screens/WelcomeScreen";
 import AppNavigator from "./app/navigation/AppNavigator";
@@ -26,36 +25,12 @@ import CalendarScreen from "./app/screens/CalendarScreen";
 import CustomDrawer from "./app/components/CustomDrawer";
 
 // Enable RTL for Arabic
-=======
-// 🧩 استيراد الشاشات
-import AuthNavigator from "./app/navigation/AuthNavigator";
-import AppNavigator from "./app/navigation/AppNavigator";
-import CalendarScreen from "./app/screens/CalendarScreen";
-import TranscriptionScreen from "./app/screens/TranscriptionScreen";
-import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
-import HistoryScreen from "./app/screens/HistoryScreen";
-import CustomDrawer from "./app/components/CustomDrawer";
-import colors from "./app/config/colors";
-import navigationTheme from "./app/navigation/navigationTheme";
-
-// ✅ استيراد السياق
-import { MeetingProvider } from "./app/context/MeetingContext";
-
-// ✅ دعم اللغة العربية (يمين إلى يسار)
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 if (!I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
 }
 
 const Drawer = createDrawerNavigator();
-<<<<<<< HEAD
-=======
-
-const CustomHeaderLeft = ({ tintColor }) => {
-  const navigation = useNavigation();
-  const canGoBack = navigation.canGoBack();
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 
 // Header Left: Back Arrow or Logo
 function CustomHeaderLeft({ navigation }) {
@@ -93,7 +68,6 @@ function CustomHeaderRight({ navigation }) {
 }
 
 export default function App() {
-<<<<<<< HEAD
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -104,14 +78,10 @@ export default function App() {
   if (showSplash) {
     return <WelcomeScreen />;
   }
-=======
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 
   return (
     <MeetingProvider>
       <NavigationContainer theme={navigationTheme}>
-<<<<<<< HEAD
         <Drawer.Navigator
           drawerContent={(props) => <CustomDrawer {...props} />}
           drawerPosition="right"
@@ -155,52 +125,6 @@ export default function App() {
             options={{ title: "ملخص الاجتماع" }}
           />
         </Drawer.Navigator>
-=======
-        {isLoggedIn ? (
-          <Drawer.Navigator
-            drawerContent={(props) => <CustomDrawer {...props} />}
-            screenOptions={{
-              drawerPosition: "right",
-              headerStyle: { backgroundColor: colors.white },
-              headerTintColor: colors.secondary,
-              headerTitleAlign: "center",
-              headerTitle: ({ children }) => (
-                <Text style={styles.headerTitle}>{children}</Text>
-              ),
-              headerLeft: () => <CustomHeaderLeft />,
-              headerRight: () => <CustomHeaderRight />,
-            }}
-          >
-            <Drawer.Screen
-              name="HomeScreen"
-              component={AppNavigator}
-              options={{ title: "الشاشة الرئيسية" }}
-            />
-            <Drawer.Screen
-              name="Transcription"
-              component={TranscriptionScreen}
-              options={{ title: "صفحة النص المستخرج" }}
-            />
-            <Drawer.Screen
-              name="History"
-              component={HistoryScreen}
-              options={{ title: "سجل المحفوظات" }}
-            />
-            <Drawer.Screen
-              name="Summary"
-              component={MeetingSummaryScreen}
-              options={{ title: "ملخص الاجتماع" }}
-            />
-            <Drawer.Screen
-              name="Calendar"
-              component={CalendarScreen}
-              options={{ title: "التقويم" }}
-            />
-          </Drawer.Navigator>
-        ) : (
-          <AuthNavigator setIsLoggedIn={setIsLoggedIn} />
-        )}
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
       </NavigationContainer>
     </MeetingProvider>
   );

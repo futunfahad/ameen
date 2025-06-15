@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useState, useEffect } from "react";
-=======
-import React, { useRef, useState } from "react";
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 import {
   View,
   StyleSheet,
@@ -13,11 +9,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Audio } from "expo-av";
-<<<<<<< HEAD
 import Slider from "@react-native-community/slider";
-=======
-
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 import colors from "../config/colors";
 import AppText from "../components/Text";
 import SecondaryButton from "../components/SecondaryButton";
@@ -27,7 +19,6 @@ export default function TranscriptionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const recordingUri = route.params?.uri;
-<<<<<<< HEAD
   const [isTestingLoading, setIsTestingLoading] = useState(false); ///// , احذفي ل زر السكيب حوليه ل ملخص الاجتماع زر
 
   const [soundObj, setSoundObj] = useState(null);
@@ -85,54 +76,6 @@ export default function TranscriptionScreen() {
     const mins = Math.floor(total / 60);
     const secs = total % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-=======
-  const sound = useRef(null);
-
-  const [transcribedText, setTranscribedText] = useState("");
-  const [editable, setEditable] = useState(false);
-  const [originalText, setOriginalText] = useState("");
-
-  const handleLeftIconPress = () => {
-    setEditable(true);
-    Alert.alert("تحرير", "يمكنك الآن تعديل النص");
-  };
-
-  const handleRightIconPress = () => {
-    setEditable(false);
-    setTranscribedText(originalText);
-    Alert.alert("تمت إعادة النص", "رجعنا للنص الأصلي قبل التعديل");
-  };
-
-  const handlePlayPress = async () => {
-    if (!recordingUri) {
-      Alert.alert("لا يوجد تسجيل", "يرجى تسجيل الصوت أولاً");
-      return;
-    }
-
-    try {
-      await Audio.setAudioModeAsync({
-        staysActiveInBackground: false,
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
-      });
-
-      if (sound.current) {
-        await sound.current.unloadAsync();
-        sound.current = null;
-      }
-
-      const { sound: playbackObject } = await Audio.Sound.createAsync(
-        { uri: recordingUri },
-        { shouldPlay: true }
-      );
-
-      sound.current = playbackObject;
-    } catch (error) {
-      console.error("❌ Error playing sound:", error);
-      Alert.alert("خطأ", "لم يتمكن من تشغيل الصوت:\n" + error.message);
-    }
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
   };
 
   const handleTranscribePress = async () => {
@@ -140,19 +83,12 @@ export default function TranscriptionScreen() {
       Alert.alert("لا يوجد تسجيل", "يرجى تسجيل الصوت أولاً");
       return;
     }
-<<<<<<< HEAD
     const form = new FormData();
     form.append("file", {
-=======
-
-    const formData = new FormData();
-    formData.append("file", {
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
       uri: recordingUri,
       name: "audio.m4a",
       type: "audio/m4a",
     });
-<<<<<<< HEAD
     try {
       const res = await fetch("http://192.168.3.93:5009/transcribe", {
         method: "POST",
@@ -161,37 +97,15 @@ export default function TranscriptionScreen() {
       });
       const data = await res.json();
       if (data.text) {
-=======
-
-    try {
-      const response = await fetch("http://192.168.3.93:5009/transcribe", {
-        method: "POST",
-        body: formData,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const data = await response.json();
-      console.log("🎯 Received transcription:", data);
-
-      if (data.text && typeof data.text === "string") {
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
         setTranscribedText(data.text);
         setOriginalText(data.text);
         setEditable(true);
       } else {
         Alert.alert("خطأ", "لم يتم الحصول على نص.");
       }
-<<<<<<< HEAD
     } catch (e) {
       console.error(e);
       Alert.alert("فشل", e.message);
-=======
-    } catch (error) {
-      console.error("❌ Error:", error);
-      Alert.alert("فشل", "تعذر إرسال التسجيل:\n" + error.message);
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
     }
   };
 
@@ -200,7 +114,6 @@ export default function TranscriptionScreen() {
       Alert.alert("⚠️", "يرجى تفريغ النص أولاً");
       return;
     }
-<<<<<<< HEAD
     navigation.navigate("Summary", { transcribedText, audioUri: recordingUri });
   };
 
@@ -213,41 +126,20 @@ export default function TranscriptionScreen() {
     setEditable(false);
     setTranscribedText(originalText);
     Alert.alert("تمت إعادة النص", "رجعنا للنص الأصلي قبل التعديل");
-=======
-
-    navigation.navigate("Summary", {
-      transcribedText: transcribedText,
-      audioUri: recordingUri, // ✅ تمرير التسجيل
-    });
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
   };
 
   return (
     <View style={styles.container}>
-<<<<<<< HEAD
       <AppText style={styles.header}>النص المستخرج من اجتماعك</AppText>
 
       <View style={styles.audioControls}>
         <TouchableOpacity onPress={handlePlayPause}>
-=======
-      <AppText style={{ fontSize: 25, marginBottom: 20 }}>
-        النص المستخرج من اجتماعك
-      </AppText>
-
-      <View style={styles.audioRow}>
-        <Image
-          source={require("../assets/audio.png")}
-          style={{ width: 150, height: 60 }}
-        />
-        <TouchableOpacity onPress={handlePlayPress}>
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
           <MaterialCommunityIcons
             name={isPlaying ? "pause-circle-outline" : "play-circle-outline"}
             size={50}
             color={colors.secondary}
           />
         </TouchableOpacity>
-<<<<<<< HEAD
         <View style={styles.sliderWrapper}>
           <Slider
             style={{ flex: 1 }}
@@ -258,36 +150,6 @@ export default function TranscriptionScreen() {
             minimumTrackTintColor={colors.secondary}
             maximumTrackTintColor="#ccc"
             thumbTintColor={colors.secondary}
-=======
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.iconRow}>
-          <TouchableOpacity
-            onPress={handleLeftIconPress}
-            style={[styles.iconWrapper, { backgroundColor: colors.primary }]}
-          >
-            <MaterialCommunityIcons name="pen" size={25} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleRightIconPress}
-            style={styles.iconWrapper}
-          >
-            <MaterialCommunityIcons name="account" size={25} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="النص المفرغ سيظهر هنا..."
-            placeholderTextColor="#888"
-            multiline
-            textAlign="right"
-            editable={editable}
-            value={transcribedText}
-            onChangeText={setTranscribedText}
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
           />
           <View style={styles.timeRow}>
             <AppText style={styles.timeText}>
@@ -300,7 +162,6 @@ export default function TranscriptionScreen() {
         </View>
       </View>
 
-<<<<<<< HEAD
       <CustomCard
         title="النص المفرغ"
         value={transcribedText}
@@ -352,21 +213,6 @@ export default function TranscriptionScreen() {
           ) : (
             <AppText style={styles.buttonText}>🧪 Testing Testing</AppText>
           )}
-=======
-      <View style={styles.bottomButtons}>
-        <TouchableOpacity
-          style={[styles.summaryButton, { marginBottom: 10 }]}
-          onPress={handleTranscribePress}
-        >
-          <AppText style={styles.buttonText}>🎙️ تفريغ النص</AppText>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.summaryButton}
-          onPress={handleNavigateToSummary}
-        >
-          <AppText style={styles.buttonText}>📄 الذهاب إلى الملخص</AppText>
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
         </TouchableOpacity>
       </View>
     </View>
@@ -387,28 +233,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 5,
   },
-<<<<<<< HEAD
   timeText: { fontSize: 12, color: "#666" },
   bottomButtons: { marginBottom: 20, alignItems: "stretch" },
-=======
-  bottomButtons: {
-    marginBottom: 20,
-  },
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
   summaryButton: {
     backgroundColor: colors.secondary,
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
-<<<<<<< HEAD
     width: "100%",
-=======
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
->>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
   },
   buttonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 });
