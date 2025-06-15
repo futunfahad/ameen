@@ -26,15 +26,20 @@ export const MeetingProvider = ({ children }) => {
 
   const saveMeetings = async (updatedMeetings) => {
     try {
+<<<<<<< HEAD
       await SecureStore.setItemAsync(
         STORAGE_KEY,
         JSON.stringify(updatedMeetings)
       );
+=======
+      await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(updatedMeetings));
+>>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
     } catch (error) {
       Alert.alert("خطأ", "فشل حفظ الاجتماعات");
     }
   };
 
+<<<<<<< HEAD
   const addMeeting = (
     transcribedText,
     summary,
@@ -42,6 +47,9 @@ export const MeetingProvider = ({ children }) => {
     audioUri,
     createdAt
   ) => {
+=======
+  const addMeeting = (transcribedText, summary, importantDates, audioUri, createdAt) => {
+>>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
     const newMeeting = {
       id: Date.now().toString(),
       transcribedText,

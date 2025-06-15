@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+<<<<<<< HEAD
 import {
   StyleSheet,
   Image,
@@ -6,6 +7,9 @@ import {
   ActivityIndicator,
   View,
 } from "react-native";
+=======
+import { StyleSheet, Image, Alert, ActivityIndicator, View } from "react-native";
+>>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
 import * as Yup from "yup";
 
 import Screen from "../components/Screen";
@@ -86,6 +90,7 @@ function LoginScreen({ setIsLoggedIn }) {
           textContentType="password"
         />
         <SubmitButton title="تسجيل دخول" disabled={loading} />
+<<<<<<< HEAD
         {/* احذفي للاختبار بس */}
         <Button
           textStyle={{ color: "white" }}
@@ -96,6 +101,8 @@ function LoginScreen({ setIsLoggedIn }) {
             setIsLoggedIn(true);
           }}
         />
+=======
+>>>>>>> 28f59a3a1e20dc285a5a2d10aefcc5dae852e315
       </Form>
     </Screen>
   );
