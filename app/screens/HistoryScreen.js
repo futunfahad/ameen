@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import colors from "../config/colors"; // ✅ Adjust path to your colors.js
+import colors from "../config/colors";
+import { MeetingContext } from "../context/MeetingContext";
 
 export default function HistoryScreen() {
+  const { meetings } = useContext(MeetingContext);
+
   const handleFilterPress = () => {
     Alert.alert("فلترة", "تم الضغط على زر الفلترة");
   };
@@ -19,12 +22,12 @@ export default function HistoryScreen() {
     Alert.alert("بحث", "تم الضغط على زر البحث");
   };
 
-  const handleEnterPress = (index) => {
-    Alert.alert("دخول", `تم الدخول إلى العنصر رقم ${index + 1}`);
+  const handleEnterPress = (item) => {
+    Alert.alert("تفاصيل", `النص:\n${item.text}`);
   };
 
-  const handleSchedulePress = (index) => {
-    Alert.alert("الجدول", `تم الضغط على الجدول للعنصر رقم ${index + 1}`);
+  const handleSchedulePress = (item) => {
+    Alert.alert("تواريخ", item.importantDates || "لا توجد تواريخ محفوظة");
   };
 
   return (
@@ -60,35 +63,44 @@ export default function HistoryScreen() {
 
       {/* Cards */}
       <ScrollView style={styles.body}>
-        {[1, 2, 3].map((item, index) => (
-          <View key={index} style={styles.card}>
-            {/* Schedule icon (clickable) */}
-            <TouchableOpacity onPress={() => handleSchedulePress(index)}>
-              <MaterialCommunityIcons
-                name="calendar-month"
-                size={28}
-                color={colors.secondary}
-                style={styles.iconRight}
-              />
-            </TouchableOpacity>
+        {meetings.length === 0 ? (
+          <Text style={{ textAlign: "center", marginTop: 20, color: "#999" }}>
+            لا توجد اجتماعات محفوظة حتى الآن.
+          </Text>
+        ) : (
+          meetings.map((item, index) => (
+            <View key={index} style={styles.card}>
+              {/* Calendar icon */}
+              <TouchableOpacity onPress={() => handleSchedulePress(item)}>
+                <MaterialCommunityIcons
+                  name="calendar-month"
+                  size={28}
+                  color={colors.secondary}
+                  style={styles.iconRight}
+                />
+              </TouchableOpacity>
 
-            {/* Card Text */}
-            <Text style={styles.cardText}>مناقشة مشروع تخرج {item}</Text>
+              {/* Meeting summary or text */}
+              <Text style={styles.cardText} numberOfLines={1}>
+                {item.summary || item.text || "اجتماع بدون عنوان"}
+              </Text>
 
-            {/* Enter icon (clickable) */}
-            <TouchableOpacity onPress={() => handleEnterPress(index)}>
-              <MaterialCommunityIcons
-                name="arrow-left-circle"
-                size={28}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-        ))}
+              {/* Enter icon */}
+              <TouchableOpacity onPress={() => handleEnterPress(item)}>
+                <MaterialCommunityIcons
+                  name="arrow-left-circle"
+                  size={28}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
       </ScrollView>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

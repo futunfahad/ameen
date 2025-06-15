@@ -1,15 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-
-import AuthNavigator from "./app/navigation/AuthNavigator"; // ✅ your auth stack
-import CustomDrawer from "./app/components/CustomDrawer";
-import AppNavigator from "./app/navigation/AppNavigator";
-import CalendarScreen from "./app/screens/CalendarScreen";
-import TranscriptionScreen from "./app/screens/TranscriptionScreen";
-import colors from "./app/config/colors";
-import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
-import HistoryScreen from "./app/screens/HistoryScreen";
-import navigationTheme from "./app/navigation/navigationTheme";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import {
   View,
@@ -22,13 +12,27 @@ import {
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 
-const Drawer = createDrawerNavigator();
+// 🧩 استيراد الشاشات
+import AuthNavigator from "./app/navigation/AuthNavigator";
+import AppNavigator from "./app/navigation/AppNavigator";
+import CalendarScreen from "./app/screens/CalendarScreen";
+import TranscriptionScreen from "./app/screens/TranscriptionScreen";
+import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
+import HistoryScreen from "./app/screens/HistoryScreen";
+import CustomDrawer from "./app/components/CustomDrawer";
+import colors from "./app/config/colors";
+import navigationTheme from "./app/navigation/navigationTheme";
 
-// RTL
+// ✅ استيراد السياق
+import { MeetingProvider } from "./app/context/MeetingContext";
+
+// ✅ دعم اللغة العربية (يمين إلى يسار)
 if (!I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
 }
+
+const Drawer = createDrawerNavigator();
 
 const CustomHeaderLeft = ({ tintColor }) => {
   const navigation = useNavigation();
@@ -67,55 +71,57 @@ const CustomHeaderRight = () => {
 };
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // 🔐 controls auth flow
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      {isLoggedIn ? (
-        <Drawer.Navigator
-          drawerContent={(props) => <CustomDrawer {...props} />}
-          screenOptions={{
-            drawerPosition: "right",
-            headerStyle: { backgroundColor: colors.white },
-            headerTintColor: colors.secondary,
-            headerTitleAlign: "center",
-            headerTitle: ({ children }) => (
-              <Text style={styles.headerTitle}>{children}</Text>
-            ),
-            headerLeft: () => <CustomHeaderLeft />,
-            headerRight: () => <CustomHeaderRight />,
-          }}
-        >
-          <Drawer.Screen
-            name="HomeScreen"
-            component={AppNavigator}
-            options={{ title: "الشاشة الرئيسية" }}
-          />
-          <Drawer.Screen
-            name="Transcription"
-            component={TranscriptionScreen}
-            options={{ title: "صفحة النص المستخرج" }}
-          />
-          <Drawer.Screen
-            name="History"
-            component={HistoryScreen}
-            options={{ title: "سجل المحفوظات" }}
-          />
-          <Drawer.Screen
-            name="Summary"
-            component={MeetingSummaryScreen}
-            options={{ title: "ملخص الاجتماع" }}
-          />
-          <Drawer.Screen
-            name="Calendar"
-            component={CalendarScreen}
-            options={{ title: "التقويم" }}
-          />
-        </Drawer.Navigator>
-      ) : (
-        <AuthNavigator setIsLoggedIn={setIsLoggedIn} /> // 👈 pass function
-      )}
-    </NavigationContainer>
+    <MeetingProvider>
+      <NavigationContainer theme={navigationTheme}>
+        {isLoggedIn ? (
+          <Drawer.Navigator
+            drawerContent={(props) => <CustomDrawer {...props} />}
+            screenOptions={{
+              drawerPosition: "right",
+              headerStyle: { backgroundColor: colors.white },
+              headerTintColor: colors.secondary,
+              headerTitleAlign: "center",
+              headerTitle: ({ children }) => (
+                <Text style={styles.headerTitle}>{children}</Text>
+              ),
+              headerLeft: () => <CustomHeaderLeft />,
+              headerRight: () => <CustomHeaderRight />,
+            }}
+          >
+            <Drawer.Screen
+              name="HomeScreen"
+              component={AppNavigator}
+              options={{ title: "الشاشة الرئيسية" }}
+            />
+            <Drawer.Screen
+              name="Transcription"
+              component={TranscriptionScreen}
+              options={{ title: "صفحة النص المستخرج" }}
+            />
+            <Drawer.Screen
+              name="History"
+              component={HistoryScreen}
+              options={{ title: "سجل المحفوظات" }}
+            />
+            <Drawer.Screen
+              name="Summary"
+              component={MeetingSummaryScreen}
+              options={{ title: "ملخص الاجتماع" }}
+            />
+            <Drawer.Screen
+              name="Calendar"
+              component={CalendarScreen}
+              options={{ title: "التقويم" }}
+            />
+          </Drawer.Navigator>
+        ) : (
+          <AuthNavigator setIsLoggedIn={setIsLoggedIn} />
+        )}
+      </NavigationContainer>
+    </MeetingProvider>
   );
 }
 
