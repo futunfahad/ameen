@@ -1,247 +1,200 @@
-import React, { useState } from "react";
-import {
-  View,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Image,
-  ScrollView,
-} from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native"; // ✅ Add this
-
-import colors from "../config/colors"; // adjust path if needed
-import AppText from "../components/Text"; // adjust path if needed
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system";
+import * as Calendar from "expo-calendar";
+import colors from "../config/colors";
+import AppText from "../components/Text";
+import SecondaryButton from "../components/SecondaryButton";
+import { useMeetingContext } from "../context/MeetingContext";
+import AudioPlayer from "../components/AudioPlayer";
+import CustomCard from "../components/CustomCard";
 
 export default function MeetingSummaryScreen() {
-  const navigation = useNavigation(); // ✅ Hook to use navigation
+  const navigation = useNavigation();
+  const route = useRoute();
+  const passedText = route.params?.transcribedText || "";
+  const audioUri = route.params?.audioUri || "";
 
-  const [isExpanded1, setIsExpanded1] = useState(false);
-  const [isExpanded2, setIsExpanded2] = useState(false);
+  const { addMeeting } = useMeetingContext();
+
   const [input1, setInput1] = useState("");
   const [input2, setInput2] = useState("");
+  const [originalText, setOriginalText] = useState(passedText);
 
-  const handleLeftIconPress = () => {
-    Alert.alert("رجوع", "تم الضغط على زر الرجوع");
+  useEffect(() => {
+    const processMeeting = async () => {
+      if (!originalText) return;
+
+      try {
+        const summaryText = await fetchSummary(originalText);
+        const datesList = await fetchDates(originalText);
+
+        const datesText =
+          datesList.length > 0
+            ? datesList.join("\n")
+            : "لا توجد تواريخ مستخرجة.";
+
+        setInput1(summaryText);
+        setInput2(datesText);
+
+        const createdAt = new Date().toISOString();
+        addMeeting(originalText, summaryText, datesList, audioUri, createdAt);
+
+        await addDatesToCalendar(datesList, summaryText);
+      } catch (err) {
+        console.error("❌ خطأ:", err);
+        Alert.alert("خطأ", err.message);
+      }
+    };
+
+    processMeeting();
+  }, []);
+
+  const fetchSummary = async (text) => {
+    const res = await fetch("http://192.168.3.93:5040/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    return data.summary || "";
   };
 
-  const handleRightIconPress = () => {
-    Alert.alert("إغلاق", "تم الضغط على زر الإغلاق");
+  const fetchDates = async (text) => {
+    const res = await fetch("http://192.168.3.93:5030/extract-dates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    return data.key_dates || [];
   };
 
-  const handlePlayPress = () => {
-    Alert.alert("تشغيل الصوت", "جاري تشغيل التسجيل الصوتي");
+  const addDatesToCalendar = async (datesArray, title) => {
+    const { status } = await Calendar.requestCalendarPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("❌", "لم يتم منح صلاحية الوصول إلى التقويم");
+      return;
+    }
+
+    const calendars = await Calendar.getCalendarsAsync(
+      Calendar.EntityTypes.EVENT
+    );
+    const defaultCalendar =
+      calendars.find((c) => c.allowsModifications) || calendars[0];
+
+    for (const dateStr of datesArray) {
+      const parsedDate = new Date(dateStr);
+      if (!isNaN(parsedDate.getTime())) {
+        await Calendar.createEventAsync(defaultCalendar.id, {
+          title: title || "حدث اجتماع",
+          startDate: parsedDate,
+          endDate: new Date(parsedDate.getTime() + 60 * 60 * 1000),
+          timeZone: "Asia/Riyadh",
+        });
+      }
+    }
   };
+
   const handleNavigateToHistory = () => {
-    navigation.navigate("History"); // ✅ Navigates to MeetingSummaryScreen
+    navigation.navigate("History");
   };
+  const handleNavigateToTranscription = () => {
+    navigation.navigate("Transcription");
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Audio Row */}
-      <View style={styles.audioRow}>
-        <Image
-          source={require("../assets/audio.png")} // adjust path if needed
-          style={{ width: 150, height: 60 }}
-        />
-        <TouchableOpacity onPress={handlePlayPress}>
-          <MaterialCommunityIcons
-            name="play-circle-outline"
-            size={50}
-            color={colors.secondary}
-          />
-        </TouchableOpacity>
-      </View>
+      <AudioPlayer uri={audioUri} />
 
-      {/* Title */}
-      <AppText style={styles.cardTitle}>ملخص الاجتماع</AppText>
-
-      {/* Card 1 */}
-      <View
-        style={[
-          styles.card,
-          isExpanded1 ? { minHeight: 200 } : { minHeight: 200, maxHeight: 180 },
+      <CustomCard
+        title="ملخص الاجتماع"
+        value={input1}
+        onChangeText={setInput1}
+        placeholder="سيظهر الملخص هنا..."
+        height={220}
+        items={[
+          {
+            icon: "pen",
+            color: colors.primary,
+            onPress: () => Alert.alert("🔧", "تعديل الملخص"),
+          },
+          {
+            icon: "content-copy",
+            color: colors.secondary,
+            onPress: () => {
+              Clipboard.setString(input1);
+              Alert.alert("📋", "تم نسخ الملخص");
+            },
+          },
+          {
+            icon: "share-variant",
+            color: colors.secondary,
+            onPress: async () => {
+              const fileUri = FileSystem.cacheDirectory + "summary.txt";
+              await FileSystem.writeAsStringAsync(fileUri, input1);
+              Sharing.shareAsync(fileUri);
+            },
+          },
         ]}
-      >
-        <TouchableOpacity
-          onPress={() => setIsExpanded1(!isExpanded1)}
-          style={styles.expandIconAbsolute}
-        >
-          <MaterialCommunityIcons
-            name={isExpanded1 ? "arrow-up-bold" : "arrow-down-bold"}
-            size={25}
-            color={colors.secondary}
-          />
-        </TouchableOpacity>
+      />
 
-        <View style={styles.iconRow}>
-          <TouchableOpacity
-            onPress={handleLeftIconPress}
-            style={[styles.iconWrapper, { backgroundColor: colors.primary }]}
-          >
-            <MaterialCommunityIcons name="pen" size={25} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={!isExpanded1}
-            nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
-            scrollEnabled={!isExpanded1}
-          ></ScrollView>
-        </View>
-      </View>
-
-      {/* Title */}
-      <AppText style={styles.cardTitle}>تواريخ تهمك</AppText>
-
-      {/* Card 2 */}
-      <View
-        style={[
-          styles.card,
-          isExpanded2 ? { minHeight: 200 } : { minHeight: 200, maxHeight: 180 },
+      <CustomCard
+        title="تواريخ تهمك"
+        value={input2}
+        onChangeText={setInput2}
+        placeholder="سيتم عرض التواريخ هنا..."
+        height={220}
+        items={[
+          {
+            icon: "calendar",
+            color: colors.primary,
+            onPress: () => Alert.alert("📆", "عرض التقويم"),
+          },
+          {
+            icon: "content-copy",
+            color: colors.secondary,
+            onPress: () => {
+              Clipboard.setString(input2);
+              Alert.alert("📋", "تم نسخ التواريخ");
+            },
+          },
+          {
+            icon: "share-variant",
+            color: colors.secondary,
+            onPress: async () => {
+              const fileUri = FileSystem.cacheDirectory + "dates.txt";
+              await FileSystem.writeAsStringAsync(fileUri, input2);
+              Sharing.shareAsync(fileUri);
+            },
+          },
         ]}
-      >
-        <TouchableOpacity
-          onPress={() => setIsExpanded2(!isExpanded2)}
-          style={styles.expandIconAbsolute}
-        >
-          <MaterialCommunityIcons
-            name={isExpanded2 ? "arrow-up-bold" : "arrow-down-bold"}
-            size={25}
-            color={colors.secondary}
-          />
-        </TouchableOpacity>
+      />
 
-        <View style={styles.iconRow}>
-          <TouchableOpacity
-            onPress={handleLeftIconPress}
-            style={[
-              styles.iconWrapper,
-              { backgroundColor: colors.primary, marginLeft: 10 },
-            ]}
-          >
-            <MaterialCommunityIcons name="pen" size={25} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleRightIconPress}
-            style={styles.iconWrapper}
-          >
-            <MaterialCommunityIcons name="download" size={25} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={!isExpanded2}
-            nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
-            scrollEnabled={!isExpanded2}
-          >
-            <TextInput
-              style={[styles.input, isExpanded2 && { minHeight: 100 }]}
-              placeholder="اكتب هنا..."
-              placeholderTextColor="#888"
-              multiline
-              textAlign="right"
-              scrollEnabled={false}
-              textAlignVertical="top"
-              value={input2}
-              onChangeText={setInput2}
-            />
-          </ScrollView>
-        </View>
-      </View>
-
-      <View style={{ height: 100 }}>
-        {/* ✅ Bottom Navigation Button */}
-        <TouchableOpacity
-          style={styles.historyButton}
+      <View style={{ paddingBottom: 40 }}>
+        <SecondaryButton
+          text="عرض سجل المحفوظات"
+          color={colors.secondary}
           onPress={handleNavigateToHistory}
-        >
-          <AppText style={styles.buttonText}>عرض سجل المحفوظات</AppText>
-        </TouchableOpacity>
+        />
+        <SecondaryButton
+          text="العودة إلى صفحة النص المستخرج ←"
+          color={colors.primary}
+          onPress={handleNavigateToTranscription}
+        />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  historyButton: {
-    backgroundColor: colors.secondary,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 0,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
   container: {
     flex: 1,
     backgroundColor: "#f2f2f2",
     paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  audioRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    marginBottom: 10,
-    justifyContent: "center",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 30,
-    elevation: 5,
-    shadowColor: "#000",
-
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    alignSelf: "stretch",
-    justifyContent: "flex-start",
-    position: "relative",
-  },
-  cardTitle: {
-    fontSize: 25,
-    marginBottom: 10,
-    textAlign: "right",
-  },
-  iconRow: {
-    flexDirection: "row-reverse",
-    justifyContent: "flex-start",
-    marginBottom: 10,
-  },
-  iconWrapper: {
-    backgroundColor: colors.secondary,
-    padding: 8,
-    borderRadius: 20,
-  },
-  inputContainer: {
-    flex: 1,
-    minHeight: 120,
-    overflow: "hidden",
-  },
-  input: {
-    fontSize: 16,
-    color: "#000",
-    textAlignVertical: "top",
-    padding: 5,
-  },
-  expandIconAbsolute: {
-    position: "absolute",
-    left: 10,
-    top: 10,
-    padding: 8,
-    borderRadius: 20,
-    zIndex: 1,
-    backgroundColor: "transparent", // optional
+    paddingTop: 25,
   },
 });

@@ -1,39 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-
-import AuthNavigator from "./app/navigation/AuthNavigator"; // ✅ your auth stack
-import CustomDrawer from "./app/components/CustomDrawer";
-import AppNavigator from "./app/navigation/AppNavigator";
-import CalendarScreen from "./app/screens/CalendarScreen";
-import TranscriptionScreen from "./app/screens/TranscriptionScreen";
-import colors from "./app/config/colors";
-import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
-import HistoryScreen from "./app/screens/HistoryScreen";
-import navigationTheme from "./app/navigation/navigationTheme";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import {
   View,
-  Text,
-  TouchableOpacity,
-  Image,
   StyleSheet,
   I18nManager,
+  TouchableOpacity,
+  Image,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
+import { MeetingProvider } from "./app/context/MeetingContext";
+import colors from "./app/config/colors";
+import navigationTheme from "./app/navigation/navigationTheme";
 
-const Drawer = createDrawerNavigator();
+// Screens and Navigators
+import WelcomeScreen from "./app/screens/WelcomeScreen";
+import AppNavigator from "./app/navigation/AppNavigator";
+import TranscriptionScreen from "./app/screens/TranscriptionScreen";
+import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
+import HistoryScreen from "./app/screens/HistoryScreen";
+import CalendarScreen from "./app/screens/CalendarScreen";
 
-// RTL
+// Custom Drawer Content
+import CustomDrawer from "./app/components/CustomDrawer";
+
+// Enable RTL for Arabic
 if (!I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
 }
 
-const CustomHeaderLeft = ({ tintColor }) => {
-  const navigation = useNavigation();
-  const canGoBack = navigation.canGoBack();
+const Drawer = createDrawerNavigator();
 
+// Header Left: Back Arrow or Logo
+function CustomHeaderLeft({ navigation }) {
+  const canGoBack = navigation.canGoBack();
   return (
     <View style={styles.headerLeftContainer}>
       {canGoBack ? (
@@ -44,7 +45,7 @@ const CustomHeaderLeft = ({ tintColor }) => {
           <Icon
             name={I18nManager.isRTL ? "arrow-right" : "arrow-left"}
             size={24}
-            color={tintColor || colors.secondary}
+            color={colors.secondary}
           />
         </TouchableOpacity>
       ) : (
@@ -52,49 +53,66 @@ const CustomHeaderLeft = ({ tintColor }) => {
       )}
     </View>
   );
-};
+}
 
-const CustomHeaderRight = () => {
-  const navigation = useNavigation();
+// Header Right: Drawer Toggle
+function CustomHeaderRight({ navigation }) {
   return (
     <TouchableOpacity
       onPress={() => navigation.openDrawer()}
-      style={{ marginRight: 15 }}
+      style={styles.menuButton}
     >
       <Icon name="menu" size={28} color={colors.secondary} />
     </TouchableOpacity>
   );
-};
+}
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // 🔐 controls auth flow
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <WelcomeScreen />;
+  }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      {isLoggedIn ? (
+    <MeetingProvider>
+      <NavigationContainer theme={navigationTheme}>
         <Drawer.Navigator
           drawerContent={(props) => <CustomDrawer {...props} />}
-          screenOptions={{
+          drawerPosition="right"
+          screenOptions={({ navigation }) => ({
             drawerPosition: "right",
+            drawerStyle: { width: 260 },
             headerStyle: { backgroundColor: colors.white },
             headerTintColor: colors.secondary,
             headerTitleAlign: "center",
-            headerTitle: ({ children }) => (
-              <Text style={styles.headerTitle}>{children}</Text>
-            ),
-            headerLeft: () => <CustomHeaderLeft />,
-            headerRight: () => <CustomHeaderRight />,
-          }}
+            headerLeft: () => <CustomHeaderLeft navigation={navigation} />,
+            headerRight: () => <CustomHeaderRight navigation={navigation} />,
+          })}
         >
           <Drawer.Screen
-            name="HomeScreen"
+            name="AppHome"
             component={AppNavigator}
-            options={{ title: "الشاشة الرئيسية" }}
+            options={{
+              title: "الشاشة الرئيسية", // shows up in the header
+              drawerLabel: "الرئيسية", // shows up in the side drawer
+            }}
           />
           <Drawer.Screen
             name="Transcription"
             component={TranscriptionScreen}
             options={{ title: "صفحة النص المستخرج" }}
+          />
+
+          <Drawer.Screen
+            name="Calendar"
+            component={CalendarScreen}
+            options={{ title: "التقويم" }}
           />
           <Drawer.Screen
             name="History"
@@ -106,16 +124,9 @@ export default function App() {
             component={MeetingSummaryScreen}
             options={{ title: "ملخص الاجتماع" }}
           />
-          <Drawer.Screen
-            name="Calendar"
-            component={CalendarScreen}
-            options={{ title: "التقويم" }}
-          />
         </Drawer.Navigator>
-      ) : (
-        <AuthNavigator setIsLoggedIn={setIsLoggedIn} /> // 👈 pass function
-      )}
-    </NavigationContainer>
+      </NavigationContainer>
+    </MeetingProvider>
   );
 }
 
@@ -125,17 +136,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 10,
   },
-  iconButton: {
-    marginRight: 10,
-  },
-  logo: {
-    width: 35,
-    height: 35,
-    resizeMode: "contain",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colors.secondary,
-  },
+  iconButton: { marginRight: 10 },
+  logo: { width: 35, height: 35, resizeMode: "contain" },
+  menuButton: { marginRight: 15 },
 });

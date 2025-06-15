@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Alert, ActivityIndicator, View, Text } from "react-native";
 import * as Yup from "yup";
 
 import Screen from "../components/Screen";
@@ -12,14 +12,55 @@ const validationSchema = Yup.object().shape({
 });
 
 function RegisterScreen({ setIsLoggedIn }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async ({ name, email, password }) => {
+    try {
+      setLoading(true);
+
+      const response = await fetch("http://192.168.3.93:5020/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: name,
+          email,
+          password,
+        }),
+      });
+
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType && contentType.includes("application/json");
+
+      const data = isJson ? await response.json() : {};
+
+      if (response.ok) {
+        Alert.alert("✅ تم", data.message || "تم إنشاء الحساب بنجاح");
+        setIsLoggedIn(true);
+      } else {
+        Alert.alert("❌ فشل", data.message || "حدث خطأ أثناء التسجيل");
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      Alert.alert("⚠️ خطأ", `فشل الاتصال بالسيرفر:\n${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Screen style={styles.container}>
+      {loading && (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <Text style={styles.loadingText}>جاري إنشاء الحساب...</Text>
+        </View>
+      )}
+
       <Form
         initialValues={{ name: "", email: "", password: "" }}
-        onSubmit={(values) => {
-          console.log(values);
-          setIsLoggedIn(true); // ✅ move to app
-        }}
+        onSubmit={handleRegister}
         validationSchema={validationSchema}
       >
         <FormField
@@ -46,7 +87,7 @@ function RegisterScreen({ setIsLoggedIn }) {
           secureTextEntry
           textContentType="password"
         />
-        <SubmitButton title="تسجيل حساب جديد" />
+        <SubmitButton title="تسجيل حساب جديد" disabled={loading} />
       </Form>
     </Screen>
   );
@@ -55,6 +96,14 @@ function RegisterScreen({ setIsLoggedIn }) {
 const styles = StyleSheet.create({
   container: {
     padding: 10,
+  },
+  loadingBox: {
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
   },
 });
 

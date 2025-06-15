@@ -2,94 +2,78 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
-
 import colors from "../config/colors";
-const CustomDrawer = (props) => {
-  const navigation = useNavigation();
 
-  const menuItems = [
-    { name: "الشاشة الرئيسية", icon: "home", route: "HomeScreen" },
-    {
-      name: "صفحة النص المستخرج",
-      icon: "file-document-outline",
-      route: "Transcription",
-    },
-    { name: "الملخص", icon: "file-chart-outline", route: "Summary" },
-    { name: "سجل المحفوظات", icon: "history", route: "History" },
+const menuItems = [
+  { label: "الشاشة الرئيسية", icon: "home", route: "AppHome" },
+  {
+    label: "صفحة النص المستخرج",
+    icon: "file-document-outline",
+    route: "Transcription",
+  },
+  { label: "الملخص", icon: "sort-variant", route: "Summary" },
+  { label: "سجل المحفوظات", icon: "history", route: "History" },
+  { label: "التقويم", icon: "calendar", route: "Calendar" },
+];
 
-    { name: "التقويم", icon: "calendar", route: "Calendar" },
-  ];
+export default function CustomDrawer(props) {
+  const { navigation } = props;
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Icon
-          name="account-circle"
-          size={50}
-          color="#fff"
-          style={styles.profileIcon}
-        />
-        <Text style={styles.username}>John Doe</Text>
-      </View>
+    <View style={styles.container}>
+      <View style={styles.header} />
 
-      {/* Drawer Items */}
-      <DrawerContentScrollView {...props}>
-        {menuItems.map((item, index) => (
-          <View key={index} style={styles.menuItem}>
-            <Icon
-              name={item.icon}
-              size={24}
-              color={colors.medium}
-              style={styles.icon}
-            />
-            <DrawerItem
-              label={item.name}
-              onPress={() => navigation.navigate(item.route)}
-              labelStyle={styles.labelStyle}
-              style={styles.drawerItem}
-            />
-          </View>
+      <DrawerContentScrollView
+        {...props}
+        // remove default scroll padding
+        contentContainerStyle={{ paddingTop: 0, paddingHorizontal: 0 }}
+      >
+        {menuItems.map((item) => (
+          <DrawerItem
+            key={item.route}
+            onPress={() => navigation.navigate(item.route)}
+            // strip DrawerItem’s built-in horizontal padding
+            style={styles.drawerItem}
+            label={() => (
+              <View style={styles.menuItem}>
+                <Text style={styles.label}>{item.label}</Text>
+                <Icon name={item.icon} size={24} color={colors.medium} />
+              </View>
+            )}
+          />
         ))}
       </DrawerContentScrollView>
     </View>
   );
-};
-
-export default CustomDrawer;
+}
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   header: {
     backgroundColor: colors.secondary,
     paddingVertical: 30,
     alignItems: "center",
   },
-  profileIcon: {
-    marginBottom: 5,
-  },
-  username: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  menuItem: {
-    flexDirection: "row-reverse", // Moves icon fully to the right
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginVertical: 5,
-  },
-  icon: {
-    marginLeft: 10, // Creates space between icon and text
-  },
-  labelStyle: {
-    fontSize: 16,
-    textAlign: "right", // Aligns text to the right
-    flex: 1, // Ensures text does not disappear
-    color: colors.dark,
-  },
+
+  // 👇 completely override DrawerItem padding
   drawerItem: {
-    flex: 1,
-    justifyContent: "flex-end",
+    paddingHorizontal: 0,
+    marginHorizontal: 0,
+  },
+
+  // your custom row: text then icon
+  menuItem: {
+    flexDirection: "row",
+    justifyContent: "flex-end", // push to the right edge
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 0, // now *your* content padding
+  },
+
+  label: {
+    fontSize: 16,
+    color: colors.dark,
+    textAlign: "right",
+    marginRight: 10, // space between text and icon
   },
 });

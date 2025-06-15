@@ -1,9 +1,6 @@
 import React from "react";
 import { ImageBackground, StyleSheet, View, Image, Text } from "react-native";
 
-import Button from "../components/Button";
-import routes from "../navigation/routes";
-
 function WelcomeScreen({ navigation }) {
   return (
     <View style={styles.background}>
@@ -20,17 +17,6 @@ function WelcomeScreen({ navigation }) {
           آمين مجلسك الذكي لإدارة اجتماعاتك بفعالية، يوفر التلخيص الفوري، تتبع
           المواعيد النهائية، وتنظيم القرارات بسهولة.
         </Text>
-      </View>
-      <View style={styles.buttonsContainer}>
-        <Button
-          title="تسجيل دخول"
-          onPress={() => navigation.navigate(routes.LOGIN)}
-        />
-        <Button
-          title="انشاء حساب"
-          color="secondary"
-          onPress={() => navigation.navigate(routes.REGISTER)}
-        />
       </View>
     </View>
   );
