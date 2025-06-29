@@ -90,7 +90,7 @@ export default function TranscriptionScreen() {
       type: "audio/m4a",
     });
     try {
-      const res = await fetch("http://192.168.8.217:5009/transcribe", {
+      acrivate = await fetch(" http://192.168.8.101:5009/transcribe", {
         method: "POST",
         body: form,
         headers: { "Content-Type": "multipart/form-data" },

@@ -30,21 +30,25 @@ export default function MeetingSummaryScreen() {
       if (!originalText) return;
 
       try {
-        const summaryText = await fetchSummary(originalText);
-        const datesList = await fetchDates(originalText);
+        // 👇 أولًا: نحصل على الملخص ونفس الجلسة من LLaMA المحلي
+        const { summary, chat } = await fetchSummary(originalText);
 
-        const datesText =
-          datesList.length > 0
-            ? datesList.join("\n")
-            : "لا توجد تواريخ مستخرجة.";
+        // 👇 ثانيًا: نسأل النموذج المحلي عن التواريخ بنفس الجلسة
+        const datesResponse = await chat.prompt(`استخرج لي أهم التواريخ من هذا النص:\n${originalText}`);
+        const datesList = datesResponse.message.content
+          .split("\n")
+          .map(line => line.trim())
+          .filter(line => line !== "");
 
-        setInput1(summaryText);
+        // 👇 نعالج النتائج ونحدث الواجهة
+        const datesText = datesList.length > 0 ? datesList.join("\n") : "لا توجد تواريخ مستخرجة.";
+        setInput1(summary);
         setInput2(datesText);
 
         const createdAt = new Date().toISOString();
-        addMeeting(originalText, summaryText, datesList, audioUri, createdAt);
+        addMeeting(originalText, summary, datesList, audioUri, createdAt);
 
-        await addDatesToCalendar(datesList, summaryText);
+        await addDatesToCalendar(datesList, summary);
       } catch (err) {
         console.error("❌ خطأ:", err);
         Alert.alert("خطأ", err.message);
@@ -56,18 +60,9 @@ export default function MeetingSummaryScreen() {
 
   const fetchSummary = async (text) => {
     const chat = await setupModel(selectedModel);
-    const response = await chat.prompt(`لخص النص التالي:\n${text}`);
-    return response.message.content || "";
-  };
-
-  const fetchDates = async (text) => {
-    const res = await fetch("http://192.168.3.93:5030/extract-dates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    return data.key_dates || [];
+    const summaryResponse = await chat.prompt(`لخص النص التالي:\n${text}`);
+    const summary = summaryResponse.message.content || "";
+    return { summary, chat }; // 👈 نرجع الملخص + الجلسة عشان نستخدمها للسؤال الثاني
   };
 
   const addDatesToCalendar = async (datesArray, title) => {
