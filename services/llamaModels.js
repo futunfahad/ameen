@@ -1,5 +1,8 @@
-import { loadModel, createLlamaContext, createLlamaChatSession } from 
-"llama.rn";
+import {
+  loadModel,
+  createLlamaContext,
+  createLlamaChatSession,
+} from "llama.rn";
 import RNFS from "react-native-fs";
 
 // جدول بكل النماذج
@@ -20,4 +23,3 @@ export async function setupModel(modelKey) {
 
 // إذا بغيت تعرض قائمة النماذج للاختيار
 export const AVAILABLE_MODELS = Object.keys(MODELS);
-

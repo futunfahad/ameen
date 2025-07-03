@@ -1,55 +1,82 @@
+"""
+Flask Whisper API
+– Handles WAV and MP3
+– Converts MP3 → WAV on the fly
+– Logs file type / shape for debugging
+"""
+
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
-import os
-import torch
-import torchaudio
-import soundfile as sf
-from pydub import AudioSegment
-from transformers import WhisperProcessor, WhisperForConditionalGeneration
+import os, sys, mimetypes, tempfile
 
+import torch, torchaudio, soundfile as sf
+from pydub import AudioSegment            # needs ffmpeg in PATH
+from transformers import (
+    WhisperProcessor,
+    WhisperForConditionalGeneration,
+)
+
+# ────────────────────────── Flask setup ──────────────────────────
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER   = "uploads"
 SEGMENTS_FOLDER = "segments"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER,   exist_ok=True)
 os.makedirs(SEGMENTS_FOLDER, exist_ok=True)
 
-# تحميل نموذج Whisper
+# ────────────────────────── Whisper load ─────────────────────────
 try:
-    print(">>> Loading Whisper processor/model…")
+    print(">>> Loading Whisper-small …")
     processor = WhisperProcessor.from_pretrained("openai/whisper-small")
-    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+    model     = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
     model.eval()
-    print(">>> Whisper model loaded successfully.")
+    print(">>> Whisper model ready.")
 except Exception as e:
-    print("🚨 Exception during model load:", e)
-    import sys
+    print("🚨 Failed to load model:", e)
     sys.exit(1)
 
+# ──────────────────────── Audio helper ───────────────────────────
+def load_audio_any(path):
+    """
+    Return (waveform 1-D FloatTensor, sample_rate int).
+    Converts MP3 (or any non-WAV) to WAV so soundfile can read it.
+    """
+    mime, _ = mimetypes.guess_type(path)
+    print(f"🛈 FILE: {path}  MIME: {mime}")
 
-def load_audio(filepath):
-    waveform, sample_rate = sf.read(filepath, always_2d=True)
-    waveform = torch.tensor(waveform).float()
+    # convert MP3 → temp WAV
+    if mime == "audio/mpeg":
+        tmp_wav = tempfile.mktemp(suffix=".wav")
+        print("↪ Converting MP3 → WAV:", tmp_wav)
+        AudioSegment.from_file(path).export(tmp_wav, format="wav")
+        path = tmp_wav
+
+    waveform, sr = sf.read(path, always_2d=True)     # shape (time, channels)
+    print(f"🛈 Loaded shape {waveform.shape}  sr {sr}")
+
+    # if stereo → mono
     if waveform.shape[1] > 1:
-        waveform = waveform.mean(dim=1)
-    return waveform, sample_rate
+        waveform = waveform.mean(axis=1)
 
-def transcribe_audio(audio_path, lang="ar"):
-    waveform, sample_rate = load_audio(audio_path)
+    waveform = torch.tensor(waveform.squeeze(), dtype=torch.float32)  # 1-D
+    return waveform, sr
 
-    if sample_rate != 16000:
+def transcribe_audio(segment_path, lang="ar"):
+    waveform, sr = load_audio_any(segment_path)
+
+    # resample to 16 kHz if needed
+    if sr != 16000:
         waveform = torchaudio.functional.resample(
-            waveform.unsqueeze(0), orig_freq=sample_rate, new_freq=16000
+            waveform.unsqueeze(0), orig_freq=sr, new_freq=16000
         ).squeeze(0)
 
-    input_features = processor(
-        waveform, sampling_rate=16000, return_tensors="pt"
-    ).input_features
-    decoder_ids = processor.get_decoder_prompt_ids(language=lang, task="transcribe")
-    predicted_ids = model.generate(input_features, forced_decoder_ids=decoder_ids)
-    return processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
+    feats = processor(waveform, sampling_rate=16000, return_tensors="pt").input_features
+    dec_ids = processor.get_decoder_prompt_ids(language=lang, task="transcribe")
+    pred_ids = model.generate(feats, forced_decoder_ids=dec_ids)
+    return processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
 
+# ─────────────────────────── Routes ──────────────────────────────
 @app.route("/")
-def index():
+def health():
     return "✅ Whisper transcription API is running."
 
 @app.route("/transcribe", methods=["POST"])
@@ -57,44 +84,41 @@ def transcribe():
     if "file" not in request.files or request.files["file"].filename == "":
         return jsonify({"error": "يرجى إرسال ملف صوتي صالح"}), 400
 
-    file = request.files["file"]
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+    f = request.files["file"]
+    filename  = secure_filename(f.filename)
+    filepath  = os.path.join(UPLOAD_FOLDER, filename)
+    f.save(filepath)
 
-    full_transcription = ""
-
+    full_text = ""
     try:
-        # قراءة الملف
+        # split long audio into 30-s WAV segments
         audio = AudioSegment.from_file(filepath)
-        segment_length = 30 * 1000  # 30 ثانية
-        num_segments = len(audio) // segment_length + 1
+        seg_len = 30 * 1000
+        num_seg = len(audio) // seg_len + 1
 
-        for i in range(num_segments):
-            start = i * segment_length
-            end = min((i + 1) * segment_length, len(audio))
-            segment = audio[start:end]
-            segment_path = os.path.join(SEGMENTS_FOLDER, f"seg_{i}.wav")
-            segment.export(segment_path, format="wav")
+        for i in range(num_seg):
+            start, end = i * seg_len, min((i + 1) * seg_len, len(audio))
+            segment    = audio[start:end]
+            seg_path   = os.path.join(SEGMENTS_FOLDER, f"seg_{i}.wav")
+            segment.export(seg_path, format="wav")
 
-            transcript = transcribe_audio(segment_path)
-            full_transcription += transcript + "\n"
+            full_text += transcribe_audio(seg_path) + "\n"
 
-        return jsonify({"text": full_transcription.strip()})
+        return jsonify({"text": full_text.strip()})
 
     except Exception as e:
-        print("⚠️ Exception:", str(e))
+        print("⚠️ Server error:", e)
         return jsonify({"error": "حصل خطأ أثناء التفريغ الصوتي", "details": str(e)}), 500
 
     finally:
-        # تنظيف الملفات دائمًا
+        # tidy up
         if os.path.exists(filepath):
             os.remove(filepath)
-        for seg_file in os.listdir(SEGMENTS_FOLDER):
-            seg_path = os.path.join(SEGMENTS_FOLDER, seg_file)
-            if os.path.exists(seg_path):
-                os.remove(seg_path)
+        for fn in os.listdir(SEGMENTS_FOLDER):
+            os.remove(os.path.join(SEGMENTS_FOLDER, fn))
 
+# ─────────────────────────── Run ─────────────────────────────────
 if __name__ == "__main__":
-    # no re-loader → one process, model loaded once
     app.run(debug=True, use_reloader=False, host="0.0.0.0", port=5009)
+
+

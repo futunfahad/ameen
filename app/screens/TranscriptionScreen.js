@@ -77,25 +77,31 @@ export default function TranscriptionScreen() {
     const secs = total % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
-
   const handleTranscribePress = async () => {
     if (!recordingUri) {
       Alert.alert("لا يوجد تسجيل", "يرجى تسجيل الصوت أولاً");
       return;
     }
+
     const form = new FormData();
     form.append("file", {
       uri: recordingUri,
       name: "audio.m4a",
       type: "audio/m4a",
     });
+
     try {
-      acrivate = await fetch(" http://192.168.8.101:5009/transcribe", {
-        method: "POST",
-        body: form,
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const data = await res.json();
+      const response = await fetch(
+        "http://192.168.8.101:5009/transcribe", // adjust IP if needed
+        {
+          method: "POST",
+          body: form, // don’t set Content-Type manually
+        }
+      );
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
       if (data.text) {
         setTranscribedText(data.text);
         setOriginalText(data.text);

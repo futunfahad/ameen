@@ -10,9 +10,11 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/config-plugins": "~10.0.0",
+    "@expo/prebuild-config": "~9.0.0",
     "@react-native-community/hooks": "^100.1.0",
     "@react-native-community/netinfo": "11.4.1",
-    "@react-native-community/slider": "^4.5.7",
+    "@react-native-community/slider": "4.5.6",
     "@react-navigation/bottom-tabs": "^7.2.1",
     "@react-navigation/drawer": "^7.1.2",
     "@react-navigation/native": "^7.1.10",
@@ -21,12 +23,13 @@
     "apisauce": "^3.1.0",
     "axios": "^1.10.0",
     "eas-cli": "^16.13.1",
-    "expo": "^53.0.0",
+    "expo": "53.0.13",
     "expo-av": "~15.1.6",
     "expo-blur": "~14.1.5",
     "expo-calendar": "~14.1.4",
     "expo-clipboard": "~7.1.4",
     "expo-constants": "~17.1.6",
+    "expo-crypto": "^14.1.5",
     "expo-dev-client": "~5.2.2",
     "expo-file-system": "~18.1.10",
     "expo-image-picker": "~16.1.4",
@@ -39,7 +42,7 @@
     "llama.rn": "^0.5.11",
     "lottie-react-native": "7.2.2",
     "react": "19.0.0",
-    "react-native": "0.79.3",
+    "react-native": "0.79.4",
     "react-native-calendars": "^1.1310.0",
     "react-native-expo-image-cache": "^4.1.0",
     "react-native-fs": "^2.20.0",
@@ -52,9 +55,7 @@
     "react-native-svg": "15.11.2",
     "react-native-swipe-list-view": "^3.2.9",
     "react-native-vector-icons": "^10.2.0",
-    "yup": "^0.28.5",
-    "@expo/config-plugins": "~10.0.0",
-    "@expo/prebuild-config": "~9.0.0"
+    "yup": "^0.28.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
