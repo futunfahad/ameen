@@ -1,4 +1,4 @@
-import {
+/*import {
   loadModel,
   createLlamaContext,
   createLlamaChatSession,
@@ -23,3 +23,4 @@ export async function setupModel(modelKey) {
 
 // إذا بغيت تعرض قائمة النماذج للاختيار
 export const AVAILABLE_MODELS = Object.keys(MODELS);
+*/

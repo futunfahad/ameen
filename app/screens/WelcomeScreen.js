@@ -1,18 +1,19 @@
 import React from "react";
-import { ImageBackground, StyleSheet, View, Image, Text } from "react-native";
+import { View, StyleSheet, Image, Text } from "react-native";
 
 function WelcomeScreen({ navigation }) {
   return (
-    <View style={styles.background}>
+    <View style={styles.container}>
+      {/* Top-right decorative image */}
       <Image
-        style={styles.topright}
+        style={styles.topRight}
         source={require("../assets/topright.png")}
         resizeMode="contain"
       />
 
+      {/* Centered logo and tagline */}
       <View style={styles.logoContainer}>
         <Image style={styles.logo} source={require("../assets/logo.png")} />
-
         <Text style={styles.tagline}>
           آمين مجلسك الذكي لإدارة اجتماعاتك بفعالية، يوفر التلخيص الفوري، تتبع
           المواعيد النهائية، وتنظيم القرارات بسهولة.
@@ -23,37 +24,35 @@ function WelcomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  background: {
+  container: {
     flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
+    position: "relative",
+    backgroundColor: "#f2f2f2", // or your desired background color
   },
-  buttonsContainer: {
-    padding: 20,
-    width: "100%",
+  topRight: {
+    position: "absolute",
+    top: 0,
+    left: -10,
+    width: 170,
+    height: 170,
+  },
+  logoContainer: {
+    position: "absolute",
+    top: 70,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   logo: {
     width: 150,
     height: 130,
   },
-  logoContainer: {
-    position: "absolute",
-    top: 70,
-    alignItems: "center",
-    marginTop: 100,
-  },
   tagline: {
-    fontSize: 25,
+    fontSize: 20,
     fontWeight: "600",
-    paddingVertical: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
     textAlign: "center",
-  },
-  topright: {
-    position: "absolute",
-    right: 0,
-    top: -170,
-    width: 170, // Adjust width
+    marginTop: 20,
   },
 });
 

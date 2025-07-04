@@ -79,11 +79,9 @@ export default function HomeScreen() {
   };
 
   const handleLoadAndNavigate = () => {
-    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false);
       goToTranscription();
-    }, 3000);
+    });
   };
 
   return (

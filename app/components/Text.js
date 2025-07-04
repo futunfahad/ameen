@@ -5,7 +5,10 @@ import defaultStyles from "../config/styles";
 
 function AppText({ children, style, ...otherProps }) {
   return (
-    <Text style={[defaultStyles.text, style]} {...otherProps}>
+    <Text
+      style={[defaultStyles.text, style, { paddingBottom: 3 }]}
+      {...otherProps}
+    >
       {children}
     </Text>
   );

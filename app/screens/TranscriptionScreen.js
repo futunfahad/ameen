@@ -4,7 +4,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator, //للودينق
+  ActivityIndicator,
+  Modal,
+  Text,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -19,13 +21,12 @@ export default function TranscriptionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const recordingUri = route.params?.uri;
-  const [isTestingLoading, setIsTestingLoading] = useState(false); ///// , احذفي ل زر السكيب حوليه ل ملخص الاجتماع زر
 
+  const [loading, setLoading] = useState(false);
   const [soundObj, setSoundObj] = useState(null);
   const [durationMillis, setDurationMillis] = useState(0);
   const [positionMillis, setPositionMillis] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-
   const [transcribedText, setTranscribedText] = useState("");
   const [editable, setEditable] = useState(false);
   const [originalText, setOriginalText] = useState("");
@@ -77,12 +78,13 @@ export default function TranscriptionScreen() {
     const secs = total % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
+
   const handleTranscribePress = async () => {
     if (!recordingUri) {
       Alert.alert("لا يوجد تسجيل", "يرجى تسجيل الصوت أولاً");
       return;
     }
-
+    setLoading(true);
     const form = new FormData();
     form.append("file", {
       uri: recordingUri,
@@ -91,17 +93,12 @@ export default function TranscriptionScreen() {
     });
 
     try {
-      const response = await fetch(
-        "http://192.168.8.101:5009/transcribe", // adjust IP if needed
-        {
-          method: "POST",
-          body: form, // don’t set Content-Type manually
-        }
-      );
-
+      const response = await fetch("http://192.168.8.101:5009/transcribe", {
+        method: "POST",
+        body: form,
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-
       if (data.text) {
         setTranscribedText(data.text);
         setOriginalText(data.text);
@@ -112,6 +109,8 @@ export default function TranscriptionScreen() {
     } catch (e) {
       console.error(e);
       Alert.alert("فشل", e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,6 +119,7 @@ export default function TranscriptionScreen() {
       Alert.alert("⚠️", "يرجى تفريغ النص أولاً");
       return;
     }
+    setLoading(true);
     navigation.navigate("Summary", { transcribedText, audioUri: recordingUri });
   };
 
@@ -136,7 +136,12 @@ export default function TranscriptionScreen() {
 
   return (
     <View style={styles.container}>
-      <AppText style={styles.header}>النص المستخرج من اجتماعك</AppText>
+      <Modal transparent visible={loading} animationType="fade">
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.statusText}>جاري المعالجة…</Text>
+        </View>
+      </Modal>
 
       <View style={styles.audioControls}>
         <TouchableOpacity onPress={handlePlayPause}>
@@ -194,32 +199,8 @@ export default function TranscriptionScreen() {
           text="الذهاب إلى الملخص"
           color={colors.secondary}
           onPress={handleNavigateToSummary}
+          disabled={loading}
         />
-
-        {/**testing button  */}
-        <TouchableOpacity
-          style={[
-            styles.summaryButton,
-            { backgroundColor: "red", marginTop: 15 },
-          ]}
-          onPress={() => {
-            setIsTestingLoading(true);
-            setTimeout(() => {
-              setIsTestingLoading(false);
-              navigation.navigate("Summary", {
-                transcribedText,
-                audioUri: recordingUri,
-              });
-            }, 2000); // Simulated delay
-          }}
-          disabled={isTestingLoading}
-        >
-          {isTestingLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <AppText style={styles.buttonText}>🧪 Testing Testing</AppText>
-          )}
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -241,12 +222,11 @@ const styles = StyleSheet.create({
   },
   timeText: { fontSize: 12, color: "#666" },
   bottomButtons: { marginBottom: 20, alignItems: "stretch" },
-  summaryButton: {
-    backgroundColor: colors.secondary,
-    padding: 15,
-    borderRadius: 10,
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    width: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  buttonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  statusText: { marginTop: 10, fontSize: 16, color: "#fff" },
 });

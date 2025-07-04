@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   // 👇 completely override DrawerItem padding
   drawerItem: {
     paddingHorizontal: 0,
-    marginHorizontal: 0,
+    marginHorizontal: -10,
   },
 
   // your custom row: text then icon
@@ -75,5 +75,6 @@ const styles = StyleSheet.create({
     color: colors.dark,
     textAlign: "right",
     marginRight: 10, // space between text and icon
+    paddingBottom: 5,
   },
 });
