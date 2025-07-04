@@ -8,10 +8,14 @@ import {
   ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+
 import colors from "../config/colors";
 import { MeetingContext } from "../context/MeetingContext";
 
 export default function HistoryScreen() {
+  const navigation = useNavigation();
+
   const { meetings } = useContext(MeetingContext);
 
   const handleFilterPress = () => {
@@ -23,7 +27,7 @@ export default function HistoryScreen() {
   };
 
   const handleEnterPress = (item) => {
-    Alert.alert("تفاصيل", `النص:\n${item.text}`);
+    navigation.navigate("Archive");
   };
 
   const handleSchedulePress = (item) => {

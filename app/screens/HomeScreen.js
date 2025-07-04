@@ -102,7 +102,8 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {recordingUri && (
+      {/* Show buttons only if not recording AND recordingUri exists */}
+      {recordingUri && !recording && (
         <View style={styles.buttonsContainer}>
           {isLoading ? (
             <ActivityIndicator

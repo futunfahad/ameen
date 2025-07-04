@@ -170,33 +170,26 @@ import TranscriptionScreen from "./app/screens/TranscriptionScreen";
 import MeetingSummaryScreen from "./app/screens/MeetingSummaryScreen";
 import HistoryScreen from "./app/screens/HistoryScreen";
 import CalendarScreen from "./app/screens/CalendarScreen";
+import ArchiveScreen from "./app/screens/ArchiveScreen";
 
 // Custom Drawer Content
 import CustomDrawer from "./app/components/CustomDrawer";
 
-// Enable RTL for Arabic
-if (!I18nManager.isRTL) {
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(true);
-}
-
 const Drawer = createDrawerNavigator();
+I18nManager.forceRTL(false);
+I18nManager.allowRTL(false);
 
-// HeaderRight: Shows back arrow (if any), else logo
-function CustomHeaderRight({ navigation }) {
+// HeaderLeft: Shows back arrow (if any), else logo (NOW ON THE LEFT)
+function CustomHeaderLeft({ navigation }) {
   const canGoBack = navigation.canGoBack();
   return (
-    <View style={styles.headerRightContainer}>
+    <View style={styles.headerLeftContainer}>
       {canGoBack ? (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.iconButton}
         >
-          <Icon
-            name={I18nManager.isRTL ? "arrow-left" : "arrow-right"}
-            size={24}
-            color={colors.secondary}
-          />
+          <Icon name={"arrow-left"} size={24} color={colors.secondary} />
         </TouchableOpacity>
       ) : (
         <Image source={require("./app/assets/logo.png")} style={styles.logo} />
@@ -230,8 +223,9 @@ export default function App() {
             headerTintColor: colors.secondary,
             headerTitleAlign: "center",
             headerTitleStyle: { paddingBottom: 5 },
-            // Left: Menu always
-            headerLeft: () => (
+            // SWAPPED: Back/logo left, menu right
+            headerLeft: () => <CustomHeaderLeft navigation={navigation} />,
+            headerRight: () => (
               <TouchableOpacity
                 onPress={() => navigation.openDrawer()}
                 style={styles.iconButton}
@@ -239,8 +233,6 @@ export default function App() {
                 <Icon name="menu" size={28} color={colors.secondary} />
               </TouchableOpacity>
             ),
-            // Right: Arrow or logo
-            headerRight: () => <CustomHeaderRight navigation={navigation} />,
             headerLeftContainerStyle: { paddingLeft: 15 },
             headerRightContainerStyle: { paddingRight: 15 },
           })}
@@ -270,6 +262,11 @@ export default function App() {
             component={MeetingSummaryScreen}
             options={{ title: "ملخص الاجتماع" }}
           />
+          <Drawer.Screen
+            name="Archive"
+            component={ArchiveScreen}
+            options={{ title: "معلومات الاجتماع" }}
+          />
         </Drawer.Navigator>
       </NavigationContainer>
     </MeetingProvider>
@@ -277,13 +274,26 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  headerLeftContainer: {
+    marginLeft: 0,
+    // Add flexDirection/alignItems for safety
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 48,
+    height: "100%",
+  },
   headerRightContainer: {
-    marginRight: 15,
-    // If you want the arrow/logo aligned exactly like default, you can add:
-    // flexDirection: 'row', alignItems: 'center'
+    marginRight: 0,
+    // Not needed for menu, but keeps symmetry
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 48,
+    height: "100%",
   },
   iconButton: {
     marginHorizontal: 0,
+    padding: 8,
+    borderRadius: 20,
   },
   logo: {
     width: 35,

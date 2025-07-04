@@ -32,13 +32,13 @@ const styles = StyleSheet.create({
   topRight: {
     position: "absolute",
     top: 0,
-    left: -10,
+    right: -10,
     width: 170,
     height: 170,
   },
   logoContainer: {
     position: "absolute",
-    top: 70,
+    top: 190,
     left: 0,
     right: 0,
     alignItems: "center",
