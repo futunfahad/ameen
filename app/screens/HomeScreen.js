@@ -79,9 +79,17 @@ export default function HomeScreen() {
   };
 
   const handleLoadAndNavigate = () => {
+<<<<<<< HEAD
     setTimeout(() => {
       goToTranscription();
     });
+=======
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      goToTranscription();
+    }, 3000);
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
   };
 
   return (
@@ -102,8 +110,12 @@ export default function HomeScreen() {
         </View>
       )}
 
+<<<<<<< HEAD
       {/* Show buttons only if not recording AND recordingUri exists */}
       {recordingUri && !recording && (
+=======
+      {recordingUri && (
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
         <View style={styles.buttonsContainer}>
           {isLoading ? (
             <ActivityIndicator

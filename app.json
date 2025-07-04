@@ -1,19 +1,27 @@
 {
   "expo": {
     "name": "ameen2",
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
     "slug": "ameen2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./app/assets/icon.png",
     "userInterfaceStyle": "light",
+<<<<<<< HEAD
     "jsEngine": "hermes",
+=======
+    "jsEngine": "jsc",
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
     "splash": {
       "image": "./app/assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
+<<<<<<< HEAD
       "supportsTablet": true,
       "bundleIdentifier": "n"
     },
@@ -25,15 +33,31 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.n"
+=======
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+<<<<<<< HEAD
     "plugins": ["expo-sqlite", "expo-secure-store"],
     "extra": {
       "eas": {
         "projectId": "62322801-b7d3-49ef-9937-0fedc4562dc7"
       }
     }
+=======
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ]
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
   }
 }

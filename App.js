@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /*import React, { useState, useEffect } from "react";
+=======
+import React, { useState, useEffect } from "react";
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
 import { NavigationContainer } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import {
@@ -32,6 +36,7 @@ if (!I18nManager.isRTL) {
 
 const Drawer = createDrawerNavigator();
 
+<<<<<<< HEAD
 // Header Left: Logo only
 function CustomHeaderLeft() {
   return (
@@ -180,6 +185,9 @@ I18nManager.forceRTL(false);
 I18nManager.allowRTL(false);
 
 // HeaderLeft: Shows back arrow (if any), else logo (NOW ON THE LEFT)
+=======
+// Header Left: Back Arrow or Logo
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
 function CustomHeaderLeft({ navigation }) {
   const canGoBack = navigation.canGoBack();
   return (
@@ -189,7 +197,15 @@ function CustomHeaderLeft({ navigation }) {
           onPress={() => navigation.goBack()}
           style={styles.iconButton}
         >
+<<<<<<< HEAD
           <Icon name={"arrow-left"} size={24} color={colors.secondary} />
+=======
+          <Icon
+            name={I18nManager.isRTL ? "arrow-right" : "arrow-left"}
+            size={24}
+            color={colors.secondary}
+          />
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
         </TouchableOpacity>
       ) : (
         <Image source={require("./app/assets/logo.png")} style={styles.logo} />
@@ -198,6 +214,21 @@ function CustomHeaderLeft({ navigation }) {
   );
 }
 
+<<<<<<< HEAD
+=======
+// Header Right: Drawer Toggle
+function CustomHeaderRight({ navigation }) {
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.openDrawer()}
+      style={styles.menuButton}
+    >
+      <Icon name="menu" size={28} color={colors.secondary} />
+    </TouchableOpacity>
+  );
+}
+
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -222,6 +253,7 @@ export default function App() {
             headerStyle: { backgroundColor: colors.white },
             headerTintColor: colors.secondary,
             headerTitleAlign: "center",
+<<<<<<< HEAD
             headerTitleStyle: { paddingBottom: 5 },
             // SWAPPED: Back/logo left, menu right
             headerLeft: () => <CustomHeaderLeft navigation={navigation} />,
@@ -235,18 +267,33 @@ export default function App() {
             ),
             headerLeftContainerStyle: { paddingLeft: 15 },
             headerRightContainerStyle: { paddingRight: 15 },
+=======
+            headerLeft: () => <CustomHeaderLeft navigation={navigation} />,
+            headerRight: () => <CustomHeaderRight navigation={navigation} />,
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
           })}
         >
           <Drawer.Screen
             name="AppHome"
             component={AppNavigator}
+<<<<<<< HEAD
             options={{ title: "الشاشة الرئيسية", drawerLabel: "الرئيسية" }}
+=======
+            options={{
+              title: "الشاشة الرئيسية", // shows up in the header
+              drawerLabel: "الرئيسية", // shows up in the side drawer
+            }}
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
           />
           <Drawer.Screen
             name="Transcription"
             component={TranscriptionScreen}
             options={{ title: "صفحة النص المستخرج" }}
           />
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
           <Drawer.Screen
             name="Calendar"
             component={CalendarScreen}
@@ -262,11 +309,14 @@ export default function App() {
             component={MeetingSummaryScreen}
             options={{ title: "ملخص الاجتماع" }}
           />
+<<<<<<< HEAD
           <Drawer.Screen
             name="Archive"
             component={ArchiveScreen}
             options={{ title: "معلومات الاجتماع" }}
           />
+=======
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
         </Drawer.Navigator>
       </NavigationContainer>
     </MeetingProvider>
@@ -275,6 +325,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   headerLeftContainer: {
+<<<<<<< HEAD
     marginLeft: 0,
     // Add flexDirection/alignItems for safety
     flexDirection: "row",
@@ -300,4 +351,13 @@ const styles = StyleSheet.create({
     height: 35,
     resizeMode: "contain",
   },
+=======
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  iconButton: { marginRight: 10 },
+  logo: { width: 35, height: 35, resizeMode: "contain" },
+  menuButton: { marginRight: 15 },
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
 });

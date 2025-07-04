@@ -18,7 +18,11 @@ function RegisterScreen({ setIsLoggedIn }) {
     try {
       setLoading(true);
 
+<<<<<<< HEAD
       const response = await fetch("http://192.168.8.217:5020/signup", {
+=======
+      const response = await fetch("http://192.168.3.93:5020/signup", {
+>>>>>>> 1996626fccc7ee8595a2d4c73280e26fbf3a2a84
         method: "POST",
         headers: {
           "Content-Type": "application/json",
