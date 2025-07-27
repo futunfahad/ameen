@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "ameen2",
+    "slug": "ameen2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./app/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
+    "splash": {
+      "image": "./app/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "n"
+    },
+    "android": {
+      "enableDangerousExperimentalLeanBuilds": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./app/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.n"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "62322801-b7d3-49ef-9937-0fedc4562dc7"
+      }
+    },
+    "owner": "vmllz1"
+  }
+}
