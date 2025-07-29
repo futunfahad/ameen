@@ -82,7 +82,7 @@ export default function HomeScreen() {
     setTimeout(() => {
       setIsLoading(false);
       goToTranscription();
-    }, 3000);
+    }, 0);
   };
 
   return (
