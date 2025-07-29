@@ -89,11 +89,14 @@ export default function TranscriptionScreen() {
       type: "audio/m4a",
     });
     try {
-      const res = await fetch("http://192.168.8.121:5009/transcribe", {
-        method: "POST",
-        body: form,
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await fetch(
+        "https://4935dd0b6cd1.ngrok-free.app//transcribe",
+        {
+          method: "POST",
+          body: form,
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       const data = await res.json();
       if (data.text) {
         setTranscribedText(data.text);
@@ -160,8 +163,12 @@ export default function TranscriptionScreen() {
             thumbTintColor={colors.secondary}
           />
           <View style={styles.timeRow}>
-            <AppText style={styles.timeText}>{formatTime(positionMillis)}</AppText>
-            <AppText style={styles.timeText}>{formatTime(durationMillis)}</AppText>
+            <AppText style={styles.timeText}>
+              {formatTime(positionMillis)}
+            </AppText>
+            <AppText style={styles.timeText}>
+              {formatTime(durationMillis)}
+            </AppText>
           </View>
         </View>
       </View>
@@ -174,13 +181,25 @@ export default function TranscriptionScreen() {
         height={200}
         items={[
           { icon: "pen", color: colors.primary, onPress: handleLeftIconPress },
-          { icon: "pen-off", color: colors.secondary, onPress: handleRightIconPress },
+          {
+            icon: "pen-off",
+            color: colors.secondary,
+            onPress: handleRightIconPress,
+          },
         ]}
       />
 
       <View style={styles.bottomButtons}>
-        <SecondaryButton text="تفريغ النص" color={colors.secondary} onPress={handleTranscribePress} />
-        <SecondaryButton text="الذهاب إلى الملخص" color={colors.secondary} onPress={handleNavigateToSummary} />
+        <SecondaryButton
+          text="تفريغ النص"
+          color={colors.secondary}
+          onPress={handleTranscribePress}
+        />
+        <SecondaryButton
+          text="الذهاب إلى الملخص"
+          color={colors.secondary}
+          onPress={handleNavigateToSummary}
+        />
       </View>
     </View>
   );
@@ -189,11 +208,24 @@ export default function TranscriptionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f2f2f2", padding: 20 },
   header: { fontSize: 25, marginBottom: 20, alignSelf: "center" },
-  audioControls: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  audioControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   sliderWrapper: { flex: 1, marginHorizontal: 10 },
-  timeRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 5,
+  },
   timeText: { fontSize: 12, color: "#666" },
   bottomButtons: { marginBottom: 20, alignItems: "stretch" },
-  overlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
   statusText: { marginTop: 10, fontSize: 16, color: "#fff" },
 });
