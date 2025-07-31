@@ -32,8 +32,10 @@ export default function CalendarScreen() {
 
       parsedDates.forEach((entry) => {
         const date = entry.date || entry.day || Object.keys(entry)[0];
-        const time = entry.time || (entry[date] && entry[date][0]?.time) || "00:00";
-        const title = entry.title || (entry[date] && entry[date][0]?.title) || "اجتماع";
+        const time =
+          entry.time || (entry[date] && entry[date][0]?.time) || "00:00";
+        const title =
+          entry.title || (entry[date] && entry[date][0]?.title) || "اجتماع";
 
         if (!tempTasks[date]) tempTasks[date] = [];
         tempTasks[date].push({ time, title });
@@ -59,8 +61,11 @@ export default function CalendarScreen() {
         return;
       }
 
-      const calendars = await ExpoCalendar.getCalendarsAsync(ExpoCalendar.EntityTypes.EVENT);
-      const defaultCalendar = calendars.find((c) => c.allowsModifications) || calendars[0];
+      const calendars = await ExpoCalendar.getCalendarsAsync(
+        ExpoCalendar.EntityTypes.EVENT
+      );
+      const defaultCalendar =
+        calendars.find((c) => c.allowsModifications) || calendars[0];
 
       const startDate = new Date(`${date}T${time}:00`);
       const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -103,7 +108,10 @@ export default function CalendarScreen() {
         }}
       />
 
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollArea}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>جدولك اليوم:</Text>
         {todaysTasks.length === 0 ? (
           <Text style={styles.empty}>لا توجد مهام لهذا اليوم</Text>
@@ -113,7 +121,9 @@ export default function CalendarScreen() {
               <Text style={styles.taskTime}>{task.time}</Text>
               <TouchableOpacity
                 style={styles.taskCard}
-                onPress={() => createCalendarEvent(today, task.time, task.title)}
+                onPress={() =>
+                  createCalendarEvent(today, task.time, task.title)
+                }
               >
                 <Text style={styles.taskTitle}>{task.title}</Text>
               </TouchableOpacity>
@@ -130,7 +140,9 @@ export default function CalendarScreen() {
               <Text style={styles.taskTime}>{task.time}</Text>
               <TouchableOpacity
                 style={[styles.taskCard, styles.taskCard2]}
-                onPress={() => createCalendarEvent(tomorrowStr, task.time, task.title)}
+                onPress={() =>
+                  createCalendarEvent(tomorrowStr, task.time, task.title)
+                }
               >
                 <Text style={styles.taskTitle}>{task.title}</Text>
               </TouchableOpacity>
@@ -147,10 +159,31 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 15, paddingTop: 40 },
   scrollArea: { flex: 1, marginTop: 10 },
-  title: { fontSize: 20, fontWeight: "bold", marginVertical: 15, textAlign: "right", color: colors.dark },
-  taskWrapper: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 10 },
-  taskTime: { fontSize: 14, color: colors.medium, marginLeft: 10, width: 60, textAlign: "right" },
-  taskCard: { backgroundColor: colors.secondary, padding: 15, borderRadius: 10, flex: 1 },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginVertical: 15,
+    textAlign: "right",
+    color: colors.dark,
+  },
+  taskWrapper: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  taskTime: {
+    fontSize: 14,
+    color: colors.medium,
+    marginLeft: 10,
+    width: 60,
+    textAlign: "right",
+  },
+  taskCard: {
+    backgroundColor: colors.secondary,
+    padding: 15,
+    borderRadius: 10,
+    flex: 1,
+  },
   taskCard2: { backgroundColor: colors.primary },
   taskTitle: { fontSize: 16, color: "#fff", textAlign: "right" },
   empty: { color: "#aaa", textAlign: "center", marginBottom: 10 },

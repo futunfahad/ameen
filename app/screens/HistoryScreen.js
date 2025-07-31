@@ -30,7 +30,10 @@ export default function HistoryScreen() {
   };
 
   const handleSchedulePress = (item) => {
-    Alert.alert("تواريخ", item.importantDates?.join("\n") || "لا توجد تواريخ محفوظة");
+    Alert.alert(
+      "تواريخ",
+      item.importantDates?.join("\n") || "لا توجد تواريخ محفوظة"
+    );
   };
 
   return (

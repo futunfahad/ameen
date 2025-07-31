@@ -7,6 +7,7 @@ import {
   Text,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from "react-native";
 import {
   useNavigation,
@@ -36,6 +37,7 @@ export default function MeetingSummaryScreen() {
   const audioUri = route.params?.audioUri || "";
   const { addMeeting } = useMeetingContext();
 
+  const [meetingTopic, setMeetingTopic] = useState("");
   const [summary, setSummary] = useState("");
   const [datesTxt, setDatesTxt] = useState("");
   const [status, setStatus] = useState("⏳ بدء المعالجة…");
@@ -46,8 +48,8 @@ export default function MeetingSummaryScreen() {
       if (!passedText) return;
 
       const run = async () => {
+        setLoading(true);
         try {
-          setLoading(true);
           const docPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
           if (!(await RNFS.exists(docPath))) {
             setStatus("⬇️ تنزيل النموذج…");
@@ -92,29 +94,44 @@ export default function MeetingSummaryScreen() {
           const datesText = dateLines.join("\n") || "لا توجد تواريخ.";
           setDatesTxt(datesText);
 
-          addMeeting(
-            passedText,
-            summaryText,
-            dateLines,
-            audioUri,
-            new Date().toISOString()
-          );
-          await addDatesToCalendar(dateLines, summaryText);
-
           setStatus("✅ تم!");
+
+          // Close loading after 1s, don't block on releasing model
+          setTimeout(() => setLoading(false), 1000);
+
+          // Release model in background
+          releaseAllLlama().catch((releaseErr) =>
+            console.warn("⚠️ Failed to release model:", releaseErr)
+          );
         } catch (err) {
           console.error(err);
           Alert.alert("خطأ", err.message || "حدث خطأ غير متوقع");
           setStatus("❌ فشل");
-        } finally {
           setLoading(false);
-          await releaseAllLlama();
         }
       };
 
       run();
     }, [passedText])
   );
+
+  const handleSaveMeeting = () => {
+    if (!meetingTopic.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع.");
+      return;
+    }
+
+    addMeeting(
+      passedText,
+      summary,
+      datesTxt.split("\n"),
+      audioUri,
+      new Date().toISOString(),
+      meetingTopic.trim()
+    );
+
+    Alert.alert("تم", "تم حفظ الاجتماع بنجاح.");
+  };
 
   return (
     <View style={styles.container}>
@@ -127,6 +144,24 @@ export default function MeetingSummaryScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <AudioPlayer uri={audioUri} />
+
+        <View style={{ marginVertical: 10 }}>
+          <Text style={{ fontWeight: "bold", marginBottom: 5 }}>
+            موضوع الاجتماع:
+          </Text>
+          <TextInput
+            style={{
+              borderWidth: 1,
+              borderColor: "#ccc",
+              borderRadius: 5,
+              padding: 10,
+              backgroundColor: "#fff",
+            }}
+            placeholder="أدخل موضوع الاجتماع هنا"
+            value={meetingTopic}
+            onChangeText={setMeetingTopic}
+          />
+        </View>
 
         <CustomCard
           title="ملخص الاجتماع"
@@ -179,6 +214,11 @@ export default function MeetingSummaryScreen() {
         />
 
         <View style={styles.bottomButtons}>
+          <SecondaryButton
+            text="حفظ الاجتماع"
+            color={colors.primary}
+            onPress={handleSaveMeeting}
+          />
           <SecondaryButton
             text="عرض سجل المحفوظات"
             color={colors.secondary}

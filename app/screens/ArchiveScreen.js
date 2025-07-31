@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, Text, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import * as Sharing from "expo-sharing";
@@ -33,9 +40,7 @@ export default function ArchiveScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {item.audioUri && (
-          <AudioPlayer uri={item.audioUri} />
-        )}
+        {item.audioUri && <AudioPlayer uri={item.audioUri} />}
 
         <CustomCard
           title="النص الأصلي"

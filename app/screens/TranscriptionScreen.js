@@ -31,6 +31,8 @@ export default function TranscriptionScreen() {
   const [editable, setEditable] = useState(false);
   const [originalText, setOriginalText] = useState("");
 
+  const API_URL = "http://192.168.8.174:5050/transcribe"; // change to your server IP
+
   useEffect(() => {
     return () => {
       if (soundObj) soundObj.unloadAsync();
@@ -82,21 +84,30 @@ export default function TranscriptionScreen() {
       return;
     }
     setLoading(true);
+
+    const fileUri = recordingUri.startsWith("file://")
+      ? recordingUri
+      : "file://" + recordingUri;
+
     const form = new FormData();
     form.append("file", {
-      uri: recordingUri,
-      name: "audio.m4a",
-      type: "audio/m4a",
+      uri: fileUri,
+      name: "audio.wav",
+      type: "audio/wav",
     });
+
     try {
-      const res = await fetch(
-        "https://4935dd0b6cd1.ngrok-free.app//transcribe",
-        {
-          method: "POST",
-          body: form,
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: form,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status} - ${err}`);
+      }
+
       const data = await res.json();
       if (data.text) {
         setTranscribedText(data.text);
@@ -106,7 +117,7 @@ export default function TranscriptionScreen() {
         Alert.alert("خطأ", "لم يتم الحصول على نص.");
       }
     } catch (e) {
-      console.error(e);
+      console.error("Transcription error:", e);
       Alert.alert("فشل", e.message);
     } finally {
       setLoading(false);
@@ -121,23 +132,12 @@ export default function TranscriptionScreen() {
     navigation.navigate("Summary", { transcribedText, audioUri: recordingUri });
   };
 
-  const handleLeftIconPress = () => {
-    setEditable(true);
-    Alert.alert("تحرير", "يمكنك الآن تعديل النص");
-  };
-
-  const handleRightIconPress = () => {
-    setEditable(false);
-    setTranscribedText(originalText);
-    Alert.alert("تمت إعادة النص", "رجعنا للنص الأصلي قبل التعديل");
-  };
-
   return (
     <View style={styles.container}>
       <Modal transparent visible={loading} animationType="fade">
         <View style={styles.overlay}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.statusText}>جاري المعالجة…</Text>
+          <Text style={styles.statusText}>جاري التفريغ…</Text>
         </View>
       </Modal>
 
@@ -179,14 +179,6 @@ export default function TranscriptionScreen() {
         onChangeText={setTranscribedText}
         placeholder="النص المفرغ سيظهر هنا..."
         height={200}
-        items={[
-          { icon: "pen", color: colors.primary, onPress: handleLeftIconPress },
-          {
-            icon: "pen-off",
-            color: colors.secondary,
-            onPress: handleRightIconPress,
-          },
-        ]}
       />
 
       <View style={styles.bottomButtons}>
