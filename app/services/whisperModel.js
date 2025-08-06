@@ -1,39 +1,3 @@
-/*import * as FileSystem from "expo-file-system";
-
-export const MODEL_FILE = "ggml-large-v3-turbo.bin";
-export const MODEL_URL =
-  "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin";
-const EXPECTED_MIN_BYTES = 22 * 1024 * 1024;
-export async function ensureWhisperModel(progressCb) {
-  const dirUri = FileSystem.documentDirectory;
-  const fileUri = dirUri + MODEL_FILE;
-  const filePath = fileUri.replace(/^file:\/\//, "");
-  let info = await FileSystem.getInfoAsync(fileUri);
-  if (info.exists && info.size >= EXPECTED_MIN_BYTES) return filePath;
-  if (info.exists) await FileSystem.deleteAsync(fileUri, { idempotent: true });
-  const dl = FileSystem.createDownloadResumable(
-    MODEL_URL,
-    fileUri,
-    {},
-    ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
-      if (progressCb && totalBytesExpectedToWrite) {
-        progressCb(
-          Math.floor((totalBytesWritten / totalBytesExpectedToWrite) * 100)
-        );
-      }
-    }
-  );
-  await dl.downloadAsync();
-  info = await FileSystem.getInfoAsync(fileUri);
-  console.log(
-    `✅ Model download complete: ${(info.size / (1024 * 1024)).toFixed(1)} MB`
-  );
-  if (!info.exists || info.size < EXPECTED_MIN_BYTES) {
-    throw new Error(`Model file incomplete (${info.size} bytes)`);
-  }
-  return filePath;
-}///
-*/
 import * as FileSystem from "expo-file-system";
 
 export const MODEL_FILE = "ggml-large-v3-turbo.bin";
