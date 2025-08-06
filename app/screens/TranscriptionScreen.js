@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -9,9 +9,14 @@ import {
   Text,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { Audio } from "expo-av";
 import Slider from "@react-native-community/slider";
+import * as FileSystem from "expo-file-system";
 import colors from "../config/colors";
 import AppText from "../components/Text";
 import SecondaryButton from "../components/SecondaryButton";
@@ -30,39 +35,116 @@ export default function TranscriptionScreen() {
   const [positionMillis, setPositionMillis] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
-  const [editable, setEditable] = useState(false); // keep original state
-  const [originalText, setOriginalText] = useState(""); // keep original state
+  const [editable, setEditable] = useState(false);
+  const [originalText, setOriginalText] = useState("");
   const whisperRef = useRef(null);
 
+  // NEW: guards to avoid reload storms
+  const isReloadingRef = useRef(false);
+  const lastSrcRef = useRef(null);
+  const lastSizeRef = useRef(null);
+
+  // Reload audio ONCE when screen focuses or the URI really changes
+  const reloadAudio = useCallback(async () => {
+    if (!recordingUri) return;
+    if (isReloadingRef.current) return;
+    isReloadingRef.current = true;
+
+    // Normalize src
+    const src = recordingUri.startsWith("file://")
+      ? recordingUri
+      : "file://" + recordingUri;
+
+    try {
+      // Check current file size (single log)
+      const info = await FileSystem.getInfoAsync(src);
+      const size = info?.size ?? 0;
+
+      // If same file & same size already loaded, skip
+      if (
+        lastSrcRef.current === src &&
+        lastSizeRef.current === size &&
+        soundObj
+      ) {
+        isReloadingRef.current = false;
+        return;
+      }
+
+      // Reset UI state so slider matches new file
+      setIsPlaying(false);
+      setPositionMillis(0);
+      setDurationMillis(0);
+
+      // Unload previous sound (and detach status updates)
+      if (soundObj) {
+        try {
+          soundObj.setOnPlaybackStatusUpdate(null);
+          await soundObj.unloadAsync();
+        } catch {}
+        setSoundObj(null);
+      }
+
+      // Use a unique temp copy for the PLAYER to avoid caching
+      const dest = `${FileSystem.cacheDirectory}play_${Date.now()}.wav`;
+      await FileSystem.copyAsync({ from: src, to: dest });
+
+      // Load and capture real duration
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: dest },
+        { shouldPlay: false },
+        (st) => {
+          setPositionMillis(st?.positionMillis ?? 0);
+          setIsPlaying(!!st?.isPlaying);
+          if (st?.durationMillis != null) setDurationMillis(st.durationMillis);
+        }
+      );
+
+      setSoundObj(sound);
+      const s = await sound.getStatusAsync();
+      setDurationMillis(s?.durationMillis ?? 0);
+      setPositionMillis(s?.positionMillis ?? 0);
+
+      // Update guards
+      lastSrcRef.current = src;
+      lastSizeRef.current = size;
+    } catch (e) {
+      console.error("Audio reload error:", e);
+    } finally {
+      isReloadingRef.current = false;
+    }
+  }, [recordingUri /* no soundObj here to avoid loops */]);
+
+  // Run reload once on focus (and when recordingUri truly changes)
+  useFocusEffect(
+    useCallback(() => {
+      reloadAudio();
+      return () => {};
+    }, [reloadAudio])
+  );
+
+  // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (soundObj) soundObj.unloadAsync();
+      if (soundObj) {
+        try {
+          soundObj.setOnPlaybackStatusUpdate(null);
+          soundObj.unloadAsync();
+        } catch {}
+      }
     };
   }, [soundObj]);
 
   const handlePlayPause = async () => {
     try {
-      if (soundObj) {
-        const status = await soundObj.getStatusAsync();
-        if (status.isPlaying) {
-          await soundObj.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await soundObj.playAsync();
-          setIsPlaying(true);
-        }
-        return;
+      if (!soundObj) return;
+      const status = await soundObj.getStatusAsync();
+      if (status.isPlaying) {
+        await soundObj.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await soundObj.playAsync();
+        setIsPlaying(true);
       }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: recordingUri },
-        { shouldPlay: true },
-        (status) => {
-          setPositionMillis(status.positionMillis);
-          setDurationMillis(status.durationMillis);
-          setIsPlaying(status.isPlaying);
-        }
-      );
-      setSoundObj(sound);
     } catch (err) {
       console.error("Playback error:", err);
     }
@@ -73,7 +155,7 @@ export default function TranscriptionScreen() {
   };
 
   const formatTime = (millis) => {
-    const total = Math.floor(millis / 1000);
+    const total = Math.floor((millis || 0) / 1000);
     const mins = Math.floor(total / 60);
     const secs = total % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
@@ -88,11 +170,11 @@ export default function TranscriptionScreen() {
 
     try {
       const modelPath = await ensureWhisperModel();
-
       if (!whisperRef.current) {
         whisperRef.current = await initWhisper({ filePath: modelPath });
       }
 
+      // Whisper uses ORIGINAL source (unchanged)
       const { promise } = whisperRef.current.transcribe(recordingUri, {
         language: "ar",
       });
@@ -145,7 +227,7 @@ export default function TranscriptionScreen() {
             style={{ flex: 1 }}
             value={positionMillis}
             minimumValue={0}
-            maximumValue={durationMillis}
+            maximumValue={durationMillis || 0}
             onSlidingComplete={handleSeek}
             minimumTrackTintColor={colors.secondary}
             maximumTrackTintColor="#ccc"
