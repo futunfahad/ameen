@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -16,6 +16,8 @@ import colors from "../config/colors";
 import AppText from "../components/Text";
 import SecondaryButton from "../components/SecondaryButton";
 import CustomCard from "../components/CustomCard";
+import { ensureWhisperModel } from "../services/whisperModel";
+import { initWhisper } from "whisper.rn";
 
 export default function TranscriptionScreen() {
   const navigation = useNavigation();
@@ -28,10 +30,9 @@ export default function TranscriptionScreen() {
   const [positionMillis, setPositionMillis] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcribedText, setTranscribedText] = useState("");
-  const [editable, setEditable] = useState(false);
-  const [originalText, setOriginalText] = useState("");
-
-  const API_URL = "http://192.168.8.174:5050/transcribe"; // change to your server IP
+  const [editable, setEditable] = useState(false); // keep original state
+  const [originalText, setOriginalText] = useState(""); // keep original state
+  const whisperRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -85,40 +86,28 @@ export default function TranscriptionScreen() {
     }
     setLoading(true);
 
-    const fileUri = recordingUri.startsWith("file://")
-      ? recordingUri
-      : "file://" + recordingUri;
-
-    const form = new FormData();
-    form.append("file", {
-      uri: fileUri,
-      name: "audio.wav",
-      type: "audio/wav",
-    });
-
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: form,
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const modelPath = await ensureWhisperModel();
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`HTTP ${res.status} - ${err}`);
+      if (!whisperRef.current) {
+        whisperRef.current = await initWhisper({ filePath: modelPath });
       }
 
-      const data = await res.json();
-      if (data.text) {
-        setTranscribedText(data.text);
-        setOriginalText(data.text);
+      const { promise } = whisperRef.current.transcribe(recordingUri, {
+        language: "ar",
+      });
+
+      const { result } = await promise;
+      if (result) {
+        setTranscribedText(result.trim());
+        setOriginalText(result.trim());
         setEditable(true);
       } else {
         Alert.alert("خطأ", "لم يتم الحصول على نص.");
       }
     } catch (e) {
       console.error("Transcription error:", e);
-      Alert.alert("فشل", e.message);
+      Alert.alert("فشل", e.message || "حدث خطأ أثناء التفريغ");
     } finally {
       setLoading(false);
     }

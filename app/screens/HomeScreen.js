@@ -1,36 +1,71 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Alert,
   Animated,
-  ActivityIndicator,
+  PermissionsAndroid,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
 import { useNavigation } from "@react-navigation/native";
+import AudioRecord from "react-native-audio-record";
+import * as FileSystem from "expo-file-system";
 import colors from "../config/colors";
 import SecondaryButton from "../components/SecondaryButton";
 
 const NUM_BARS = 20;
 
 export default function HomeScreen() {
-  const [recording, setRecording] = useState(null);
+  const [recording, setRecording] = useState(false);
   const [recordingUri, setRecordingUri] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [recorderReady, setRecorderReady] = useState(false);
   const navigation = useNavigation();
 
-  const volumeInterval = useRef(null);
   const barHeights = useRef(
     Array.from({ length: NUM_BARS }, () => new Animated.Value(10))
   ).current;
+  const volumeInterval = useRef(null);
 
-  const animateBars = (amplitude = 0.5) => {
+  useEffect(() => {
+    const initRecorder = async () => {
+      try {
+        let granted = true;
+
+        if (Platform.OS === "android") {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
+          );
+          granted = result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+
+        if (!granted) {
+          Alert.alert("❌ الصلاحيات مرفوضة", "يجب السماح بالوصول للميكروفون.");
+          return;
+        }
+
+        AudioRecord.init({
+          sampleRate: 16000,
+          channels: 1,
+          bitsPerSample: 16,
+          wavFile: "speech.wav",
+          audioSource: 6,
+        });
+
+        setRecorderReady(true);
+      } catch (err) {
+        Alert.alert("خطأ", "فشل تهيئة المسجل: " + err.message);
+      }
+    };
+
+    initRecorder();
+  }, []);
+
+  const animateBars = () => {
     barHeights.forEach((bar) => {
-      const scale = Math.random() * amplitude + 0.1;
       Animated.timing(bar, {
-        toValue: 10 + Math.pow(scale, 1.5) * 60,
+        toValue: 10 + Math.random() * 60,
         duration: 150,
         useNativeDriver: false,
       }).start();
@@ -38,35 +73,22 @@ export default function HomeScreen() {
   };
 
   const startRecording = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("الصلاحيات مطلوبة", "يرجى تمكين الوصول للميكروفون.");
+    if (!recorderReady) {
+      Alert.alert("⏳", "المايكروفون غير جاهز بعد");
       return;
     }
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-    });
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.LOW_QUALITY
-    );
-    setRecording(recording);
 
-    volumeInterval.current = setInterval(async () => {
-      const { metering } = await recording.getStatusAsync();
-      const amplitude = metering
-        ? Math.max(0, 1 - Math.min(1, metering / -160))
-        : 0.5;
-      animateBars(amplitude);
-    }, 150);
+    setRecordingUri(null);
+    AudioRecord.start();
+    setRecording(true);
+    volumeInterval.current = setInterval(() => animateBars(), 150);
   };
 
   const stopRecording = async () => {
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    setRecording(null);
-    setRecordingUri(uri);
+    const filePath = await AudioRecord.stop();
     clearInterval(volumeInterval.current);
+    setRecording(false);
+    setRecordingUri("file://" + filePath);
   };
 
   const handlePress = () => {
@@ -74,15 +96,23 @@ export default function HomeScreen() {
   };
 
   const goToTranscription = () => {
-    navigation.navigate("Transcription", { uri: recordingUri });
+    if (recordingUri)
+      navigation.navigate("Transcription", { uri: recordingUri });
   };
 
-  const handleLoadAndNavigate = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      goToTranscription();
-    }, 0);
+  const handleDelete = async () => {
+    try {
+      if (recordingUri) {
+        const uri = recordingUri.startsWith("file://")
+          ? recordingUri
+          : "file://" + recordingUri;
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      }
+      setRecordingUri(null);
+      Alert.alert("🗑️", "تم حذف التسجيل");
+    } catch (e) {
+      Alert.alert("خطأ", "تعذر حذف التسجيل: " + (e?.message || e));
+    }
   };
 
   return (
@@ -104,27 +134,33 @@ export default function HomeScreen() {
       )}
 
       {recordingUri && !recording && (
-        <View style={styles.buttonsContainer}>
-          {isLoading ? (
-            <ActivityIndicator
-              size="large"
+        <>
+          {/* نفس الأيقونة التي كانت عندك */}
+          <TouchableOpacity
+            onPress={goToTranscription}
+            style={{ marginTop: 30 }}
+          >
+            <MaterialCommunityIcons
+              name="file-document-outline"
+              size={40}
               color={colors.secondary}
-              style={styles.loader}
             />
-          ) : (
+          </TouchableOpacity>
+
+          {/* الأزرار التي سألت عنها: عرض النص + حذف التسجيل */}
+          <View style={{ width: "80%", marginTop: 16 }}>
             <SecondaryButton
               text="عرض النص المستخرج"
               color={colors.secondary}
-              onPress={handleLoadAndNavigate}
+              onPress={goToTranscription}
             />
-          )}
-
-          <SecondaryButton
-            text="حذف التسجيل"
-            color={colors.secondary}
-            onPress={() => Alert.alert("🗑️", "تم حذف التسجيل")}
-          />
-        </View>
+            <SecondaryButton
+              text="حذف التسجيل"
+              color={colors.secondary}
+              onPress={handleDelete}
+            />
+          </View>
+        </>
       )}
     </View>
   );
@@ -133,10 +169,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f4f4",
-    padding: 20,
+    justifyContent: "center",
+    backgroundColor: "#f2f2f2",
   },
   micButton: {
     backgroundColor: colors.white,
@@ -162,13 +197,5 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
     backgroundColor: colors.primary,
     borderRadius: 3,
-  },
-  buttonsContainer: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: 20,
-  },
-  loader: {
-    marginBottom: 15,
   },
 });
