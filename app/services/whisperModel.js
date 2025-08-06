@@ -32,7 +32,7 @@ export async function ensureWhisperModel(progressCb) {
     throw new Error(`Model file incomplete (${info.size} bytes)`);
   }
   return filePath;
-}
+}///
 */
 import * as FileSystem from "expo-file-system";
 

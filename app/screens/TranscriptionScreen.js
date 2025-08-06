@@ -37,30 +37,32 @@ export default function TranscriptionScreen() {
   const [transcribedText, setTranscribedText] = useState("");
   const [editable, setEditable] = useState(false);
   const [originalText, setOriginalText] = useState("");
+  const [modelPct, setModelPct] = useState(null);
+  const [modelDownloading, setModelDownloading] = useState(false);
+
   const whisperRef = useRef(null);
 
-  // NEW: guards to avoid reload storms
+  // Guards to avoid reload storms / duplicate loads
   const isReloadingRef = useRef(false);
   const lastSrcRef = useRef(null);
   const lastSizeRef = useRef(null);
 
-  // Reload audio ONCE when screen focuses or the URI really changes
+  // Reload audio ONCE whenever this screen becomes focused (or URI truly changes)
   const reloadAudio = useCallback(async () => {
     if (!recordingUri) return;
     if (isReloadingRef.current) return;
     isReloadingRef.current = true;
 
-    // Normalize src
+    // Normalize original source path
     const src = recordingUri.startsWith("file://")
       ? recordingUri
       : "file://" + recordingUri;
 
     try {
-      // Check current file size (single log)
       const info = await FileSystem.getInfoAsync(src);
       const size = info?.size ?? 0;
 
-      // If same file & same size already loaded, skip
+      // If the same file with same size is already loaded, skip reload
       if (
         lastSrcRef.current === src &&
         lastSizeRef.current === size &&
@@ -70,12 +72,12 @@ export default function TranscriptionScreen() {
         return;
       }
 
-      // Reset UI state so slider matches new file
+      // Reset slider/UI state
       setIsPlaying(false);
       setPositionMillis(0);
       setDurationMillis(0);
 
-      // Unload previous sound (and detach status updates)
+      // Unload any previous sound and detach status listeners
       if (soundObj) {
         try {
           soundObj.setOnPlaybackStatusUpdate(null);
@@ -84,11 +86,11 @@ export default function TranscriptionScreen() {
         setSoundObj(null);
       }
 
-      // Use a unique temp copy for the PLAYER to avoid caching
+      // Bust caching for the PLAYER only: make a unique temp copy
       const dest = `${FileSystem.cacheDirectory}play_${Date.now()}.wav`;
       await FileSystem.copyAsync({ from: src, to: dest });
 
-      // Load and capture real duration
+      // Load player from the unique temp copy and capture real duration
       const { sound } = await Audio.Sound.createAsync(
         { uri: dest },
         { shouldPlay: false },
@@ -104,7 +106,7 @@ export default function TranscriptionScreen() {
       setDurationMillis(s?.durationMillis ?? 0);
       setPositionMillis(s?.positionMillis ?? 0);
 
-      // Update guards
+      // Remember what we loaded to avoid unnecessary reloads
       lastSrcRef.current = src;
       lastSizeRef.current = size;
     } catch (e) {
@@ -112,9 +114,8 @@ export default function TranscriptionScreen() {
     } finally {
       isReloadingRef.current = false;
     }
-  }, [recordingUri /* no soundObj here to avoid loops */]);
+  }, [recordingUri]); // do not include soundObj here (prevents loops)
 
-  // Run reload once on focus (and when recordingUri truly changes)
   useFocusEffect(
     useCallback(() => {
       reloadAudio();
@@ -122,7 +123,7 @@ export default function TranscriptionScreen() {
     }, [reloadAudio])
   );
 
-  // Clean up on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (soundObj) {
@@ -169,12 +170,17 @@ export default function TranscriptionScreen() {
     setLoading(true);
 
     try {
-      const modelPath = await ensureWhisperModel();
+      // Show model download % (if needed)
+      setModelDownloading(true);
+      const modelPath = await ensureWhisperModel?.((pct) => setModelPct(pct));
+      setModelDownloading(false);
+      setModelPct(null);
+
       if (!whisperRef.current) {
         whisperRef.current = await initWhisper({ filePath: modelPath });
       }
 
-      // Whisper uses ORIGINAL source (unchanged)
+      // Whisper uses the ORIGINAL (full) source
       const { promise } = whisperRef.current.transcribe(recordingUri, {
         language: "ar",
       });
@@ -192,6 +198,8 @@ export default function TranscriptionScreen() {
       Alert.alert("فشل", e.message || "حدث خطأ أثناء التفريغ");
     } finally {
       setLoading(false);
+      setModelDownloading(false);
+      setModelPct(null);
     }
   };
 
@@ -208,7 +216,13 @@ export default function TranscriptionScreen() {
       <Modal transparent visible={loading} animationType="fade">
         <View style={styles.overlay}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.statusText}>جاري التفريغ…</Text>
+          {modelDownloading && modelPct !== null ? (
+            <Text style={styles.statusText}>
+              تحميل نموذج Whisper: {modelPct}%
+            </Text>
+          ) : (
+            <Text style={styles.statusText}>جاري التفريغ…</Text>
+          )}
         </View>
       </Modal>
 
