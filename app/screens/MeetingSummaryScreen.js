@@ -1,294 +1,203 @@
-import React, { useState } from "react";
+// screens/MeetingSummaryScreen.js
+import React, { useState, useCallback } from "react";
 import {
   View,
-  StyleSheet,
-  ScrollView,
+  TextInput,
+  Button,
   Alert,
   Text,
   ActivityIndicator,
-  Modal,
-  TextInput,
+  StyleSheet,
+  ScrollView,
 } from "react-native";
 import {
-  useNavigation,
   useRoute,
+  useNavigation,
   useFocusEffect,
 } from "@react-navigation/native";
-import * as Clipboard from "expo-clipboard";
-import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
-import * as Calendar from "expo-calendar";
 import RNFS from "react-native-fs";
 import { initLlama, releaseAllLlama } from "llama.rn";
 
 import colors from "../config/colors";
-import SecondaryButton from "../components/SecondaryButton";
-import { useMeetingContext } from "../context/MeetingContext";
 import AudioPlayer from "../components/AudioPlayer";
 import CustomCard from "../components/CustomCard";
+import { useMeetingContext } from "../context/MeetingContext";
+import { safeReleaseWhisper } from "../services/whisperInstance";
 
 const MODEL_FILE = "qwen2.5-3b-instruct-q4_k_m.gguf";
-const MODEL_URL = `https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/${MODEL_FILE}?download=true`;
+const MODEL_URL = `https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/${MODEL_FILE}`;
 
 export default function MeetingSummaryScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
-  const passedText = route.params?.transcribedText || "";
-  const audioUri = route.params?.audioUri || "";
+  const { transcribedText = "", audioUri = "" } = useRoute().params || {};
   const { addMeeting } = useMeetingContext();
 
-  const [meetingTopic, setMeetingTopic] = useState("");
   const [summary, setSummary] = useState("");
   const [datesTxt, setDatesTxt] = useState("");
-  const [status, setStatus] = useState("⏳ بدء المعالجة…");
-  const [loading, setLoading] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("⏳ جاري المعالجة…");
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!passedText) return;
+  // Summarization logic
+  const runSummarization = useCallback(async () => {
+    setLoading(true);
+    try {
+      await safeReleaseWhisper("pre-llama");
 
-      const run = async () => {
-        setLoading(true);
-        try {
-          const docPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
-          if (!(await RNFS.exists(docPath))) {
-            setStatus("⬇️ تنزيل النموذج…");
-            await downloadFile(MODEL_URL, docPath, (p) =>
-              setStatus(`⬇️ ${p}%`)
-            );
-          }
+      const modelPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
+      if (!(await RNFS.exists(modelPath))) {
+        setStatus("⬇️ تنزيل النموذج…");
+        await RNFS.downloadFile({
+          fromUrl: MODEL_URL,
+          toFile: modelPath,
+          progressDivider: 5,
+          progress: ({ bytesWritten, contentLength }) =>
+            setStatus(
+              `⬇️ ${Math.floor((bytesWritten / contentLength) * 100)}%`
+            ),
+        }).promise;
+      }
 
-          setStatus("⚙️ تحميل النموذج…");
-          const ctx = await initLlama({
-            model: docPath,
-            n_ctx: 2048,
-            n_gpu_layers: 1,
-          });
+      setStatus("⚙️ تحميل النموذج…");
+      const ctx = await initLlama({
+        model: modelPath,
+        n_ctx: 1024,
+        n_gpu_layers: 0,
+      });
 
-          setStatus("📝 تلخيص النص…");
-          const sumRes = await ctx.completion({
-            messages: [
-              { role: "system", content: "أنت مساعد ذكي يلخص النصوص." },
-              { role: "user", content: `لخص هذا النص:\n${passedText}` },
-            ],
-            n_predict: 800,
-          });
-          const summaryText = sumRes.text.trim();
-          setSummary(summaryText);
+      setStatus("📝 تلخيص النص…");
+      const sumRes = await ctx.completion({
+        messages: [
+          { role: "system", content: "أنت مساعد ذكي يلخص النصوص." },
+          { role: "user", content: `لخص هذا النص:\n${transcribedText}` },
+        ],
+        n_predict: 800,
+      });
+      setSummary((sumRes?.text || "").trim());
 
-          setStatus("📆 استخراج التواريخ…");
-          const dateRes = await ctx.completion({
-            messages: [
-              {
-                role: "system",
-                content: "استخرج التواريخ فقط كل تاريخ بسطر مستقل.",
-              },
-              { role: "user", content: passedText },
-            ],
-            n_predict: 400,
-          });
-          const dateLines = dateRes.text
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean);
-          const datesText = dateLines.join("\n") || "لا توجد تواريخ.";
-          setDatesTxt(datesText);
+      setStatus("📆 استخراج التواريخ…");
+      const dateRes = await ctx.completion({
+        messages: [
+          { role: "system", content: "استخرج التواريخ فقط، سطر لكل تاريخ." },
+          { role: "user", content: transcribedText },
+        ],
+        n_predict: 400,
+      });
+      setDatesTxt(
+        (dateRes?.text || "")
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .join("\n")
+      );
 
-          setStatus("✅ تم!");
+      setStatus("✅ جاهز للحفظ");
+    } catch (e) {
+      Alert.alert("خطأ", e.message || "فشل المعالجة");
+    } finally {
+      setLoading(false);
+    }
+  }, [transcribedText]);
 
-          // Close loading after 1s, don't block on releasing model
-          setTimeout(() => setLoading(false), 1000);
+  // Re-run summarization every time screen is focused
+  useFocusEffect(runSummarization);
 
-          // Release model in background
-          releaseAllLlama().catch((releaseErr) =>
-            console.warn("⚠️ Failed to release model:", releaseErr)
-          );
-        } catch (err) {
-          console.error(err);
-          Alert.alert("خطأ", err.message || "حدث خطأ غير متوقع");
-          setStatus("❌ فشل");
-          setLoading(false);
-        }
-      };
-
-      run();
-    }, [passedText])
-  );
-
-  const handleSaveMeeting = () => {
-    if (!meetingTopic.trim()) {
-      Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع.");
+  // Save handler
+  const handleSave = async () => {
+    if (!topic.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
       return;
     }
+    const datesArr = datesTxt
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
 
-    addMeeting(
-      passedText,
+    await addMeeting(
+      transcribedText,
       summary,
-      datesTxt.split("\n"),
+      datesArr,
       audioUri,
-      new Date().toISOString(),
-      meetingTopic.trim()
+      topic.trim()
     );
+    Alert.alert("✅", "تم حفظ الاجتماع");
 
-    Alert.alert("تم", "تم حفظ الاجتماع بنجاح.");
+    // reset for next
+    setTopic("");
+    setSummary("");
+    setDatesTxt("");
+
+    navigation.navigate("History");
   };
 
-  return (
-    <View style={styles.container}>
-      <Modal transparent visible={loading} animationType="fade">
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.statusText}>{status}</Text>
-        </View>
-      </Modal>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <AudioPlayer uri={audioUri} />
-
-        <View style={{ marginVertical: 10 }}>
-          <Text style={{ fontWeight: "bold", marginBottom: 5 }}>
-            موضوع الاجتماع:
-          </Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: "#ccc",
-              borderRadius: 5,
-              padding: 10,
-              backgroundColor: "#fff",
-            }}
-            placeholder="أدخل موضوع الاجتماع هنا"
-            value={meetingTopic}
-            onChangeText={setMeetingTopic}
-          />
-        </View>
-
-        <CustomCard
-          title="ملخص الاجتماع"
-          value={summary}
-          onChangeText={setSummary}
-          placeholder="سيظهر الملخص هنا…"
-          height={220}
-          items={[
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: () => {
-                Clipboard.setString(summary);
-                Alert.alert("📋", "تم نسخ الملخص");
-              },
-            },
-            {
-              icon: "share-variant",
-              color: colors.secondary,
-              onPress: async () => {
-                const path = FileSystem.cacheDirectory + "summary.txt";
-                await FileSystem.writeAsStringAsync(path, summary);
-                Sharing.shareAsync(path);
-              },
-            },
-          ]}
-        />
-
-        <CustomCard
-          title="تواريخ مهمة"
-          value={datesTxt}
-          onChangeText={setDatesTxt}
-          placeholder="سيتم عرض التواريخ هنا…"
-          height={220}
-          items={[
-            {
-              icon: "calendar",
-              color: colors.primary,
-              onPress: () => Alert.alert("📆", "تمت إضافة التواريخ للتقويم"),
-            },
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: () => {
-                Clipboard.setString(datesTxt);
-                Alert.alert("📋", "تم نسخ التواريخ");
-              },
-            },
-          ]}
-        />
-
-        <View style={styles.bottomButtons}>
-          <SecondaryButton
-            text="حفظ الاجتماع"
-            color={colors.primary}
-            onPress={handleSaveMeeting}
-          />
-          <SecondaryButton
-            text="عرض سجل المحفوظات"
-            color={colors.secondary}
-            onPress={() => navigation.navigate("History")}
-          />
-          <SecondaryButton
-            text="← العودة للنص الأصلي"
-            color={colors.primary}
-            onPress={() => navigation.goBack()}
-          />
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-async function downloadFile(url, dest, onProgress) {
-  const res = await RNFS.downloadFile({
-    fromUrl: url,
-    toFile: dest,
-    progressDivider: 5,
-    progress: ({ bytesWritten, contentLength }) => {
-      const pct = Math.floor((bytesWritten / contentLength) * 100);
-      onProgress(pct);
-    },
-  }).promise;
-  if (res.statusCode !== 200)
-    throw new Error(`Download failed (HTTP ${res.statusCode})`);
-}
-
-async function addDatesToCalendar(dates, title) {
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
-  if (status !== "granted") return;
-  const calendars = await Calendar.getCalendarsAsync(
-    Calendar.EntityTypes.EVENT
-  );
-  const targetCal =
-    calendars.find((c) => c.allowsModifications) || calendars[0];
-  for (const d of dates) {
-    const when = new Date(d);
-    if (!isNaN(when)) {
-      await Calendar.createEventAsync(targetCal.id, {
-        title: title || "موعد اجتماع",
-        startDate: when,
-        endDate: new Date(when.getTime() + 3600 * 1000),
-        timeZone: "Asia/Riyadh",
-      });
-    }
+  if (loading) {
+    return (
+      <View style={styles.overlay}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.overlayText}>{status}</Text>
+      </View>
+    );
   }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      {audioUri ? <AudioPlayer uri={audioUri} /> : null}
+
+      <Text style={styles.label}>موضوع الاجتماع:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="أدخل الموضوع هنا"
+        value={topic}
+        onChangeText={setTopic}
+      />
+
+      <View style={styles.buttonRow}>
+        <Button title="تلخيص" onPress={runSummarization} />
+        <Button
+          title="حفظ الاجتماع"
+          onPress={handleSave}
+          color={colors.primary}
+        />
+      </View>
+
+      <CustomCard
+        title="ملخص الاجتماع"
+        value={summary}
+        onChangeText={setSummary}
+        height={200}
+      />
+
+      <CustomCard
+        title="تواريخ مهمة"
+        value={datesTxt}
+        onChangeText={setDatesTxt}
+        height={150}
+      />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f2f2f2",
-    padding: 20,
-  },
-  bottomButtons: {
-    marginBottom: 40,
-    alignItems: "stretch",
-  },
   overlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
-  statusText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#fff",
+  overlayText: { marginTop: 8, color: "#fff" },
+  container: { padding: 20, paddingBottom: 50, backgroundColor: "#f2f2f2" },
+  label: { fontWeight: "bold", marginVertical: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    padding: 10,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+/*import React, { useState } from "react";
 import { StyleSheet, Alert, ActivityIndicator, View, Text } from "react-native";
 import * as Yup from "yup";
 
@@ -112,3 +112,4 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
+*/
