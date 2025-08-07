@@ -38,71 +38,87 @@ export default function MeetingSummaryScreen() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("⏳ جاري المعالجة…");
 
-  // Summarization logic
-  const runSummarization = useCallback(async () => {
-    setLoading(true);
-    try {
-      await safeReleaseWhisper("pre-llama");
+  // Auto-summarize on every focus, without returning a promise directly
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
 
-      const modelPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
-      if (!(await RNFS.exists(modelPath))) {
-        setStatus("⬇️ تنزيل النموذج…");
-        await RNFS.downloadFile({
-          fromUrl: MODEL_URL,
-          toFile: modelPath,
-          progressDivider: 5,
-          progress: ({ bytesWritten, contentLength }) =>
-            setStatus(
-              `⬇️ ${Math.floor((bytesWritten / contentLength) * 100)}%`
-            ),
-        }).promise;
-      }
+      const runSummarization = async () => {
+        try {
+          setLoading(true);
+          await safeReleaseWhisper("pre-llama");
 
-      setStatus("⚙️ تحميل النموذج…");
-      const ctx = await initLlama({
-        model: modelPath,
-        n_ctx: 1024,
-        n_gpu_layers: 0,
-      });
+          const modelPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
+          if (!(await RNFS.exists(modelPath))) {
+            setStatus("⬇️ تنزيل النموذج…");
+            await RNFS.downloadFile({
+              fromUrl: MODEL_URL,
+              toFile: modelPath,
+              progressDivider: 5,
+              progress: ({ bytesWritten, contentLength }) =>
+                setStatus(
+                  `⬇️ ${Math.floor((bytesWritten / contentLength) * 100)}%`
+                ),
+            }).promise;
+          }
 
-      setStatus("📝 تلخيص النص…");
-      const sumRes = await ctx.completion({
-        messages: [
-          { role: "system", content: "أنت مساعد ذكي يلخص النصوص." },
-          { role: "user", content: `لخص هذا النص:\n${transcribedText}` },
-        ],
-        n_predict: 800,
-      });
-      setSummary((sumRes?.text || "").trim());
+          setStatus("⚙️ تحميل النموذج…");
+          const ctx = await initLlama({
+            model: modelPath,
+            n_ctx: 1024,
+            n_gpu_layers: 0,
+          });
 
-      setStatus("📆 استخراج التواريخ…");
-      const dateRes = await ctx.completion({
-        messages: [
-          { role: "system", content: "استخرج التواريخ فقط، سطر لكل تاريخ." },
-          { role: "user", content: transcribedText },
-        ],
-        n_predict: 400,
-      });
-      setDatesTxt(
-        (dateRes?.text || "")
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean)
-          .join("\n")
-      );
+          setStatus("📝 تلخيص النص…");
+          const sumRes = await ctx.completion({
+            messages: [
+              { role: "system", content: "أنت مساعد ذكي يلخص النصوص." },
+              {
+                role: "user",
+                content: `لخص هذا النص:\n${transcribedText}`,
+              },
+            ],
+            n_predict: 800,
+          });
+          if (!cancelled) setSummary((sumRes?.text || "").trim());
 
-      setStatus("✅ جاهز للحفظ");
-    } catch (e) {
-      Alert.alert("خطأ", e.message || "فشل المعالجة");
-    } finally {
-      setLoading(false);
-    }
-  }, [transcribedText]);
+          setStatus("📆 استخراج التواريخ…");
+          const dateRes = await ctx.completion({
+            messages: [
+              {
+                role: "system",
+                content: "استخرج التواريخ فقط، سطر لكل تاريخ.",
+              },
+              { role: "user", content: transcribedText },
+            ],
+            n_predict: 400,
+          });
+          if (!cancelled)
+            setDatesTxt(
+              (dateRes?.text || "")
+                .split("\n")
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .join("\n")
+            );
 
-  // Re-run summarization every time screen is focused
-  useFocusEffect(runSummarization);
+          if (!cancelled) setStatus("✅ جاهز للحفظ");
+        } catch (e) {
+          if (!cancelled) Alert.alert("خطأ", e.message || "فشل المعالجة");
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
 
-  // Save handler
+      runSummarization();
+
+      return () => {
+        cancelled = true;
+        releaseAllLlama().catch(() => {});
+      };
+    }, [transcribedText])
+  );
+
   const handleSave = async () => {
     if (!topic.trim()) {
       Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
@@ -122,7 +138,6 @@ export default function MeetingSummaryScreen() {
     );
     Alert.alert("✅", "تم حفظ الاجتماع");
 
-    // reset for next
     setTopic("");
     setSummary("");
     setDatesTxt("");
@@ -152,7 +167,7 @@ export default function MeetingSummaryScreen() {
       />
 
       <View style={styles.buttonRow}>
-        <Button title="تلخيص" onPress={runSummarization} />
+        <Button title="تلخيص" onPress={() => runSummarization()} />
         <Button
           title="حفظ الاجتماع"
           onPress={handleSave}
@@ -184,9 +199,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
-  overlayText: { marginTop: 8, color: "#fff" },
-  container: { padding: 20, paddingBottom: 50, backgroundColor: "#f2f2f2" },
-  label: { fontWeight: "bold", marginVertical: 8 },
+  overlayText: {
+    marginTop: 8,
+    color: "#fff",
+  },
+  container: {
+    padding: 20,
+    paddingBottom: 50,
+    backgroundColor: "#f2f2f2",
+  },
+  label: {
+    fontWeight: "bold",
+    marginVertical: 8,
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",

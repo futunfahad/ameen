@@ -18,29 +18,20 @@ export default function HistoryScreen() {
   const navigation = useNavigation();
   const { meetings, deleteMeeting } = useContext(MeetingContext);
 
-  const handleFilterPress = () => {
-    Alert.alert("فلترة", "تم الضغط على زر الفلترة");
-  };
-
-  const handleSearchPress = () => {
-    Alert.alert("بحث", "تم الضغط على زر البحث");
-  };
-
   const handleEnterPress = (id) => {
     if (!id) {
       Alert.alert("خطأ", "لا يمكن فتح هذا السجل: معرّف مفقود");
       return;
     }
-    // Navigate to the Archive screen, passing only the id
     navigation.navigate("Archive", { id });
   };
 
   const handleSchedulePress = (item) => {
     Alert.alert(
       "تواريخ",
-      Array.isArray(item.importantDates) && item.importantDates.length > 0
+      item.importantDates.length
         ? item.importantDates.join("\n")
-        : "لا توجد تواريخ محفوظة"
+        : "لا توجد تواريخ"
     );
   };
 
@@ -50,48 +41,14 @@ export default function HistoryScreen() {
       "هل أنت متأكد من حذف هذا الاجتماع؟ لا يمكن التراجع.",
       [
         { text: "إلغاء", style: "cancel" },
-        {
-          text: "حذف",
-          style: "destructive",
-          onPress: () => deleteMeeting(id),
-        },
+        { text: "حذف", style: "destructive", onPress: () => deleteMeeting(id) },
       ]
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Header Row */}
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>سجل المحفوظات:</Text>
-
-        <View style={styles.iconGroup}>
-          <TouchableOpacity
-            onPress={handleFilterPress}
-            style={styles.iconButton}
-          >
-            <MaterialCommunityIcons
-              name="filter-variant"
-              size={24}
-              color={colors.secondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSearchPress}
-            style={styles.iconButton}
-          >
-            <MaterialCommunityIcons
-              name="magnify"
-              size={24}
-              color={colors.secondary}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Cards */}
-      <ScrollView style={styles.body}>
+      <ScrollView>
         {meetings.length === 0 ? (
           <Text style={styles.emptyText}>
             لا توجد اجتماعات محفوظة حتى الآن.
@@ -103,31 +60,27 @@ export default function HistoryScreen() {
               <TouchableOpacity onPress={() => handleSchedulePress(item)}>
                 <MaterialCommunityIcons
                   name="calendar-month"
-                  size={28}
+                  size={24}
                   color={colors.secondary}
-                  style={styles.iconRight}
+                  style={styles.calendarIcon}
                 />
               </TouchableOpacity>
 
-              {/* Meeting details */}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  📝 {item.preview || "اجتماع بدون عنوان"}
+              {/* Details */}
+              <View style={styles.details}>
+                <Text style={styles.title} numberOfLines={1}>
+                  📌{" "}
+                  {item.topic?.trim()
+                    ? item.topic
+                    : item.summary || item.text || "اجتماع بدون عنوان"}
                 </Text>
-                <Text style={styles.cardSubtitle} numberOfLines={1}>
-                  📅{" "}
-                  {Array.isArray(item.importantDates) &&
-                  item.importantDates.length > 0
-                    ? item.importantDates.join(", ")
-                    : "لا توجد تواريخ"}
-                </Text>
-                <Text style={styles.cardSubtitle} numberOfLines={1}>
-                  🎤 {item.audioUri ? "يوجد تسجيل صوتي" : "بدون تسجيل"}
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  📝 {item.summary?.trim() || item.text?.trim() || "بدون ملخص"}
                 </Text>
               </View>
 
-              {/* Enter & Delete icons (vertical) */}
-              <View style={styles.actionsColumn}>
+              {/* Actions */}
+              <View style={styles.actions}>
                 <TouchableOpacity
                   onPress={() => handleEnterPress(item.id)}
                   style={styles.actionButton}
@@ -138,7 +91,6 @@ export default function HistoryScreen() {
                     color={colors.primary}
                   />
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   onPress={() => confirmDelete(item.id)}
                   style={styles.actionButton}
@@ -161,28 +113,9 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: "#fff",
-  },
-  headerRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: colors.medium,
-  },
-  iconGroup: {
-    flexDirection: "row-reverse",
-  },
-  iconButton: {
-    marginLeft: 10,
-  },
-  body: {
-    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   emptyText: {
     textAlign: "center",
@@ -192,37 +125,38 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: 15,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: "#f8f8f8",
-    marginBottom: 15,
+    borderRadius: 8,
+    marginBottom: 10,
     elevation: 2,
   },
-  iconRight: {
-    marginLeft: 10,
+  calendarIcon: {
+    marginHorizontal: 8,
   },
-  cardTitle: {
-    fontSize: 16,
+  details: {
+    flex: 1,
+    paddingVertical: 2,
+  },
+  title: {
+    fontSize: 15,
     fontWeight: "bold",
     color: "#333",
     textAlign: "right",
-    marginBottom: 3,
   },
-  cardSubtitle: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 13,
     color: "#666",
     textAlign: "right",
-    marginBottom: 2,
+    marginTop: 2,
   },
-  actionsColumn: {
+  actions: {
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    marginLeft: 8,
   },
   actionButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    marginVertical: 6,
+    marginVertical: 4,
   },
 });

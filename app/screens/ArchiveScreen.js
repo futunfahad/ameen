@@ -1,4 +1,3 @@
-// screens/ArchiveScreen.js
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Alert, Text } from "react-native";
 import * as Clipboard from "expo-clipboard";
@@ -21,9 +20,9 @@ export default function ArchiveScreen() {
     (async () => {
       try {
         const m = await getFullMeeting(id);
-        if (!m) throw new Error("لا يوجد بيانات");
+        if (!m) throw new Error();
         setItem(m);
-      } catch (e) {
+      } catch {
         Alert.alert("خطأ", "فشل تحميل تفاصيل الاجتماع");
       }
     })();
@@ -37,23 +36,44 @@ export default function ArchiveScreen() {
     );
   }
 
+  const playerKey = `${item.id}:${item.audioUri}`;
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {item.audioUri ? <AudioPlayer uri={item.audioUri} /> : null}
+        <Text style={styles.topicText}>
+          <Text style={styles.topicLabel}>موضوع الاجتماع: </Text>
+          {item.topic?.trim() ? item.topic : "—"}
+        </Text>
 
-        <CustomCard
-          title="موضوع الاجتماع"
-          value={item.topic}
-          editable={false}
-          height={60}
-        />
+        {item.audioUri ? (
+          <AudioPlayer key={playerKey} uri={item.audioUri} />
+        ) : null}
 
         <CustomCard
           title="النص الأصلي"
           value={item.text}
           editable={false}
           height={200}
+          items={[
+            {
+              icon: "content-copy",
+              color: colors.secondary,
+              onPress: () => {
+                Clipboard.setString(item.text);
+                Alert.alert("📋", "تم نسخ النص الأصلي");
+              },
+            },
+            {
+              icon: "share-variant",
+              color: colors.secondary,
+              onPress: async () => {
+                const path = FileSystem.cacheDirectory + "original.txt";
+                await FileSystem.writeAsStringAsync(path, item.text);
+                Sharing.shareAsync(path);
+              },
+            },
+          ]}
         />
 
         <CustomCard
@@ -117,4 +137,12 @@ export default function ArchiveScreen() {
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
   container: { flex: 1, backgroundColor: "#f2f2f2", padding: 20 },
+  topicText: {
+    fontSize: 18,
+    marginBottom: 12,
+    textAlign: "right",
+  },
+  topicLabel: {
+    fontWeight: "bold",
+  },
 });
