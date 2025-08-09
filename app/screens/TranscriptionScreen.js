@@ -45,6 +45,21 @@ export default function TranscriptionScreen() {
   const lastSrcRef = useRef(null);
   const lastSizeRef = useRef(null);
 
+  // Don't initialize whisper on mount, do it only when needed
+  useEffect(() => {
+    // Cleanup whisper on unmount
+    return () => {
+      if (whisperRef.current) {
+        try {
+          whisperRef.current.release?.();
+        } catch (error) {
+          console.warn("Error releasing Whisper:", error);
+        }
+        whisperRef.current = null;
+      }
+    };
+  }, []);
+
   const reloadAudio = useCallback(async () => {
     if (!recordingUri || isReloadingRef.current) return;
     isReloadingRef.current = true;
@@ -55,6 +70,12 @@ export default function TranscriptionScreen() {
 
     try {
       const info = await FileSystem.getInfoAsync(src);
+      if (!info.exists) {
+        console.error("Audio file does not exist:", src);
+        Alert.alert("خطأ", "ملف الصوت غير موجود");
+        return;
+      }
+
       const size = info?.size ?? 0;
 
       // Skip if already loaded
@@ -71,36 +92,47 @@ export default function TranscriptionScreen() {
       setPositionMillis(0);
       setDurationMillis(0);
 
+      // Unload previous sound
       if (soundObj) {
         try {
           soundObj.setOnPlaybackStatusUpdate(null);
           await soundObj.unloadAsync();
-        } catch {}
+        } catch (error) {
+          console.warn("Error unloading previous sound:", error);
+        }
         setSoundObj(null);
       }
 
+      // Create temporary copy for playback
       const dest = `${FileSystem.cacheDirectory}play_${Date.now()}.wav`;
       await FileSystem.copyAsync({ from: src, to: dest });
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: dest },
         { shouldPlay: false },
-        (st) => {
-          setPositionMillis(st.positionMillis || 0);
-          setIsPlaying(!!st.isPlaying);
-          if (st.durationMillis != null) setDurationMillis(st.durationMillis);
+        (status) => {
+          if (status.isLoaded) {
+            setPositionMillis(status.positionMillis || 0);
+            setIsPlaying(!!status.isPlaying);
+            if (status.durationMillis != null) {
+              setDurationMillis(status.durationMillis);
+            }
+          }
         }
       );
 
       setSoundObj(sound);
       const status = await sound.getStatusAsync();
-      setDurationMillis(status.durationMillis || 0);
-      setPositionMillis(status.positionMillis || 0);
+      if (status.isLoaded) {
+        setDurationMillis(status.durationMillis || 0);
+        setPositionMillis(status.positionMillis || 0);
+      }
 
       lastSrcRef.current = src;
       lastSizeRef.current = size;
-    } catch (e) {
-      console.error("Audio reload error:", e);
+    } catch (error) {
+      console.error("Audio reload error:", error);
+      Alert.alert("خطأ", "فشل في تحميل الصوت");
     } finally {
       isReloadingRef.current = false;
     }
@@ -118,25 +150,44 @@ export default function TranscriptionScreen() {
         try {
           soundObj.setOnPlaybackStatusUpdate(null);
           soundObj.unloadAsync();
-        } catch {}
+        } catch (error) {
+          console.warn("Error cleaning up sound:", error);
+        }
       }
     };
   }, [soundObj]);
 
   const handlePlayPause = async () => {
     if (!soundObj) return;
-    const status = await soundObj.getStatusAsync();
-    if (status.isPlaying) {
-      await soundObj.pauseAsync();
-      setIsPlaying(false);
-    } else {
-      await soundObj.playAsync();
-      setIsPlaying(true);
+
+    try {
+      const status = await soundObj.getStatusAsync();
+      if (!status.isLoaded) {
+        console.warn("Sound not loaded");
+        return;
+      }
+
+      if (status.isPlaying) {
+        await soundObj.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await soundObj.playAsync();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error("Error in play/pause:", error);
+      Alert.alert("خطأ", "فشل في تشغيل/إيقاف الصوت");
     }
   };
 
   const handleSeek = async (value) => {
-    if (soundObj) await soundObj.setPositionAsync(value);
+    if (soundObj) {
+      try {
+        await soundObj.setPositionAsync(value);
+      } catch (error) {
+        console.error("Error seeking:", error);
+      }
+    }
   };
 
   const formatTime = (millis) => {
@@ -151,38 +202,158 @@ export default function TranscriptionScreen() {
       Alert.alert("لا يوجد تسجيل", "يرجى تسجيل الصوت أولاً");
       return;
     }
+
+    // Check if file exists
+    try {
+      const fileUri = recordingUri.startsWith("file://")
+        ? recordingUri
+        : "file://" + recordingUri;
+      const info = await FileSystem.getInfoAsync(fileUri);
+      if (!info.exists) {
+        Alert.alert("خطأ", "ملف الصوت غير موجود");
+        return;
+      }
+      console.log("Audio file exists, size:", info.size, "bytes");
+    } catch (error) {
+      console.error("Error checking file:", error);
+      Alert.alert("خطأ", "فشل في التحقق من ملف الصوت");
+      return;
+    }
+
     setLoading(true);
     try {
-      const modelPath = await ensureWhisperModel();
-      if (!whisperRef.current) {
-        whisperRef.current = await initWhisper({ filePath: modelPath });
+      // Clean up any existing whisper instance first
+      if (whisperRef.current) {
+        try {
+          whisperRef.current.release?.();
+        } catch (e) {
+          console.warn("Error releasing previous whisper instance:", e);
+        }
+        whisperRef.current = null;
       }
-      const { promise } = whisperRef.current.transcribe(recordingUri, {
-        language: "ar",
+
+      console.log("Ensuring Whisper model...");
+      const modelPath = await ensureWhisperModel((progress) => {
+        console.log("Model download progress:", progress + "%");
       });
+
+      console.log("Model path:", modelPath);
+
+      // Verify model file exists and has correct size
+      const modelInfo = await FileSystem.getInfoAsync("file://" + modelPath);
+      if (!modelInfo.exists) {
+        throw new Error("Model file does not exist after download");
+      }
+      console.log("Model file verified, size:", modelInfo.size, "bytes");
+
+      console.log("Initializing Whisper with model...");
+
+      // Try different initialization approaches
+      const whisperOptions = {
+        filePath: modelPath,
+        // Remove any potentially problematic options
+      };
+
+      console.log("Whisper init options:", whisperOptions);
+      whisperRef.current = await initWhisper(whisperOptions);
+      console.log("Whisper initialized successfully");
+
+      // Prepare audio file path
+      const audioPath = recordingUri.replace(/^file:\/\//, "");
+      console.log("Starting transcription for audio:", audioPath);
+
+      // Simple transcription options
+      const transcribeOptions = {
+        language: "ar",
+      };
+
+      console.log("Transcription options:", transcribeOptions);
+      const { promise } = whisperRef.current.transcribe(
+        audioPath,
+        transcribeOptions
+      );
+
       const { result } = await promise;
-      if (result) {
+
+      if (result && result.trim()) {
+        console.log("Transcription successful:", result.length, "characters");
+        console.log("First 100 chars:", result.substring(0, 100));
         setTranscribedText(result.trim());
       } else {
-        Alert.alert("خطأ", "لم يتم الحصول على نص.");
+        console.warn("Empty transcription result");
+        Alert.alert("تحذير", "لم يتم العثور على نص في التسجيل أو التسجيل فارغ");
       }
-    } catch (e) {
-      console.error("Transcription error:", e);
-      Alert.alert("فشل", e.message || "حدث خطأ أثناء التفريغ");
+    } catch (error) {
+      console.error("Transcription error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+
+      // Clean up on error
+      if (whisperRef.current) {
+        try {
+          whisperRef.current.release?.();
+        } catch (e) {
+          console.warn("Error releasing whisper on error:", e);
+        }
+        whisperRef.current = null;
+      }
+
+      Alert.alert("فشل", error.message || "حدث خطأ أثناء التفريغ");
     } finally {
       setLoading(false);
     }
   };
 
   const handleNavigateToSummary = () => {
-    if (!transcribedText) {
+    if (!transcribedText?.trim()) {
       Alert.alert("⚠️", "يرجى تفريغ النص أولاً");
       return;
     }
     navigation.navigate("Summary", {
-      transcribedText,
+      transcribedText: transcribedText.trim(),
       audioUri: recordingUri,
     });
+  };
+
+  const handleCopyText = async () => {
+    if (!transcribedText?.trim()) {
+      Alert.alert("تحذير", "لا يوجد نص للنسخ");
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(transcribedText);
+      Alert.alert("📋", "تم نسخ النص");
+    } catch (error) {
+      console.error("Copy error:", error);
+      Alert.alert("خطأ", "فشل في نسخ النص");
+    }
+  };
+
+  const handleShareText = async () => {
+    if (!transcribedText?.trim()) {
+      Alert.alert("تحذير", "لا يوجد نص للمشاركة");
+      return;
+    }
+
+    try {
+      const path = `${FileSystem.cacheDirectory}transcript_${Date.now()}.txt`;
+      await FileSystem.writeAsStringAsync(path, transcribedText);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(path, {
+          mimeType: "text/plain",
+          dialogTitle: "مشاركة النص المفرغ",
+        });
+      } else {
+        Alert.alert("خطأ", "المشاركة غير متاحة على هذا الجهاز");
+      }
+    } catch (error) {
+      console.error("Share error:", error);
+      Alert.alert("خطأ", "فشل في مشاركة النص");
+    }
   };
 
   return (
@@ -197,11 +368,11 @@ export default function TranscriptionScreen() {
       <AppText style={styles.header}>النص المستخرج من اجتماعك</AppText>
 
       <View style={styles.audioControls}>
-        <TouchableOpacity onPress={handlePlayPause}>
+        <TouchableOpacity onPress={handlePlayPause} disabled={!soundObj}>
           <MaterialCommunityIcons
             name={isPlaying ? "pause-circle-outline" : "play-circle-outline"}
             size={50}
-            color={colors.secondary}
+            color={soundObj ? colors.secondary : "#ccc"}
           />
         </TouchableOpacity>
         <View style={styles.sliderWrapper}>
@@ -209,11 +380,12 @@ export default function TranscriptionScreen() {
             style={{ flex: 1 }}
             value={positionMillis}
             minimumValue={0}
-            maximumValue={durationMillis || 0}
+            maximumValue={durationMillis || 1}
             onSlidingComplete={handleSeek}
             minimumTrackTintColor={colors.secondary}
             maximumTrackTintColor="#ccc"
             thumbTintColor={colors.secondary}
+            disabled={!soundObj}
           />
           <View style={styles.timeRow}>
             <AppText style={styles.timeText}>
@@ -236,19 +408,12 @@ export default function TranscriptionScreen() {
           {
             icon: "content-copy",
             color: colors.secondary,
-            onPress: () => {
-              Clipboard.setString(transcribedText);
-              Alert.alert("📋", "تم نسخ النص");
-            },
+            onPress: handleCopyText,
           },
           {
             icon: "share-variant",
             color: colors.secondary,
-            onPress: async () => {
-              const path = FileSystem.cacheDirectory + "transcript.txt";
-              await FileSystem.writeAsStringAsync(path, transcribedText);
-              Sharing.shareAsync(path);
-            },
+            onPress: handleShareText,
           },
         ]}
       />
@@ -258,11 +423,13 @@ export default function TranscriptionScreen() {
           text="تفريغ النص"
           color={colors.secondary}
           onPress={handleTranscribePress}
+          disabled={loading || !recordingUri}
         />
         <SecondaryButton
           text="الذهاب إلى الملخص"
           color={colors.secondary}
           onPress={handleNavigateToSummary}
+          disabled={!transcribedText?.trim()}
         />
       </View>
     </View>
