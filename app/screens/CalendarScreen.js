@@ -17,25 +17,31 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [tasks, setTasks] = useState({});
 
+  // In the useEffect hook
   useEffect(() => {
     const tempTasks = {};
 
     meetings.forEach((meeting) => {
-      if (!meeting.importantDates) return;
+      let dates = meeting.importantDates;
 
-      let parsedDates = [];
-      try {
-        parsedDates = JSON.parse(meeting.importantDates);
-      } catch {
-        return;
+      // If dates is a string, parse it (shouldn't happen with our fixes but just in case)
+      if (typeof dates === "string") {
+        try {
+          dates = JSON.parse(dates);
+        } catch {
+          dates = [];
+        }
       }
 
-      parsedDates.forEach((entry) => {
-        const date = entry.date || entry.day || Object.keys(entry)[0];
-        const time =
-          entry.time || (entry[date] && entry[date][0]?.time) || "00:00";
-        const title =
-          entry.title || (entry[date] && entry[date][0]?.title) || "اجتماع";
+      // Ensure we have an array
+      if (!Array.isArray(dates)) dates = [];
+
+      dates.forEach((entry) => {
+        const date = entry.date;
+        if (!date) return;
+
+        const time = entry.time || "00:00";
+        const title = entry.title || "اجتماع";
 
         if (!tempTasks[date]) tempTasks[date] = [];
         tempTasks[date].push({ time, title });
@@ -50,38 +56,57 @@ export default function CalendarScreen() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-  const todaysTasks = tasks[today] || [];
-  const tomorrowsTasks = tasks[tomorrowStr] || [];
+  const sortedTodayTasks = [...(tasks[today] || [])].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  );
+
+  const sortedTomorrowTasks = [...(tasks[tomorrowStr] || [])].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  );
 
   const createCalendarEvent = async (date, time, title) => {
-    try {
-      const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("الصلاحية مرفوضة", "يرجى السماح للوصول إلى التقويم.");
-        return;
-      }
+    Alert.alert("إضافة إلى التقويم", `هل تريد إضافة "${title}" إلى التقويم؟`, [
+      {
+        text: "إلغاء",
+        style: "cancel",
+      },
+      {
+        text: "تأكيد",
+        onPress: async () => {
+          try {
+            const { status } =
+              await ExpoCalendar.requestCalendarPermissionsAsync();
+            if (status !== "granted") {
+              Alert.alert("الصلاحية مرفوضة", "يرجى السماح للوصول إلى التقويم.");
+              return;
+            }
 
-      const calendars = await ExpoCalendar.getCalendarsAsync(
-        ExpoCalendar.EntityTypes.EVENT
-      );
-      const defaultCalendar =
-        calendars.find((c) => c.allowsModifications) || calendars[0];
+            const calendars = await ExpoCalendar.getCalendarsAsync(
+              ExpoCalendar.EntityTypes.EVENT
+            );
+            const defaultCalendar =
+              calendars.find((c) => c.allowsModifications) || calendars[0];
 
-      const startDate = new Date(`${date}T${time}:00`);
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+            const eventTime = time === "00:00" ? "09:00" : time;
+            const startDate = new Date(`${date}T${eventTime}:00`);
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-      await ExpoCalendar.createEventAsync(defaultCalendar.id, {
-        title,
-        startDate,
-        endDate,
-        timeZone: "Asia/Riyadh",
-      });
+            await ExpoCalendar.createEventAsync(defaultCalendar.id, {
+              title,
+              startDate,
+              endDate,
+              timeZone: "Asia/Riyadh",
+              alarms: [{ relativeOffset: -15 }],
+            });
 
-      Alert.alert("✅ تم إضافة الحدث إلى التقويم");
-    } catch (error) {
-      console.error("خطأ في إنشاء الحدث:", error);
-      Alert.alert("حدث خطأ", error.message);
-    }
+            Alert.alert("✅ تم بنجاح", `تمت إضافة "${title}" إلى التقويم`);
+          } catch (error) {
+            console.error("خطأ في إنشاء الحدث:", error);
+            Alert.alert("حدث خطأ", error.message);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -95,16 +120,34 @@ export default function CalendarScreen() {
             selectedColor: colors.secondary,
           },
           ...Object.keys(tasks).reduce((acc, date) => {
-            acc[date] = { marked: true, dotColor: colors.primary };
+            acc[date] = {
+              marked: true,
+              dotColor: colors.primary,
+              activeOpacity: 0.5,
+            };
             return acc;
           }, {}),
         }}
-        enableSwipeMonths
+        monthFormat={"MMMM yyyy"}
+        hideArrows={false}
         firstDay={6}
+        enableSwipeMonths
         theme={{
+          calendarBackground: "#fff",
+          textSectionTitleColor: colors.dark,
           todayTextColor: colors.primary,
+          dayTextColor: "#2d4150",
+          textDisabledColor: "#d9e1e8",
           selectedDayBackgroundColor: colors.secondary,
+          selectedDayTextColor: "#fff",
           arrowColor: colors.secondary,
+          monthTextColor: colors.dark,
+          textDayFontWeight: "300",
+          textMonthFontWeight: "bold",
+          textDayHeaderFontWeight: "300",
+          textDayFontSize: 16,
+          textMonthFontSize: 18,
+          textDayHeaderFontSize: 14,
         }}
       />
 
@@ -113,10 +156,10 @@ export default function CalendarScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>جدولك اليوم:</Text>
-        {todaysTasks.length === 0 ? (
+        {sortedTodayTasks.length === 0 ? (
           <Text style={styles.empty}>لا توجد مهام لهذا اليوم</Text>
         ) : (
-          todaysTasks.map((task, index) => (
+          sortedTodayTasks.map((task, index) => (
             <View key={index} style={styles.taskWrapper}>
               <Text style={styles.taskTime}>{task.time}</Text>
               <TouchableOpacity
@@ -132,10 +175,10 @@ export default function CalendarScreen() {
         )}
 
         <Text style={styles.title}>جدولك غدًا:</Text>
-        {tomorrowsTasks.length === 0 ? (
+        {sortedTomorrowTasks.length === 0 ? (
           <Text style={styles.empty}>لا توجد مهام لغد</Text>
         ) : (
-          tomorrowsTasks.map((task, index) => (
+          sortedTomorrowTasks.map((task, index) => (
             <View key={index} style={styles.taskWrapper}>
               <Text style={styles.taskTime}>{task.time}</Text>
               <TouchableOpacity
@@ -157,8 +200,16 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 15, paddingTop: 40 },
-  scrollArea: { flex: 1, marginTop: 10 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 15,
+    paddingTop: 40,
+  },
+  scrollArea: {
+    flex: 1,
+    marginTop: 10,
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -184,7 +235,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     flex: 1,
   },
-  taskCard2: { backgroundColor: colors.primary },
-  taskTitle: { fontSize: 16, color: "#fff", textAlign: "right" },
-  empty: { color: "#aaa", textAlign: "center", marginBottom: 10 },
+  taskCard2: {
+    backgroundColor: colors.primary,
+  },
+  taskTitle: {
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "right",
+  },
+  empty: {
+    color: "#aaa",
+    textAlign: "center",
+    marginBottom: 10,
+  },
 });
