@@ -2,13 +2,13 @@
 import React, { useState, useCallback } from "react";
 import {
   View,
+  Text,
   TextInput,
   Button,
   Alert,
-  Text,
   ActivityIndicator,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
 } from "react-native";
 import {
   useRoute,
@@ -18,10 +18,11 @@ import {
 import RNFS from "react-native-fs";
 import { initLlama, releaseAllLlama } from "llama.rn";
 
-import colors from "../config/colors";
-import AudioPlayer from "../components/AudioPlayer";
-import CustomCard from "../components/CustomCard";
+import { normalizeArabicText } from "../services/arabicDateNormalizer";
 import { useMeetingContext } from "../context/MeetingContext";
+import CustomCard from "../components/CustomCard";
+import AudioPlayer from "../components/AudioPlayer";
+import colors from "../config/colors";
 import { safeReleaseWhisper } from "../services/whisperInstance";
 
 const MODEL_FILE = "qwen2.5-3b-instruct-q4_k_m.gguf";
@@ -29,39 +30,33 @@ const MODEL_URL = `https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/
 
 export default function MeetingSummaryScreen() {
   const navigation = useNavigation();
-  const { transcribedText = "", audioUri = "" } = useRoute().params || {};
+  const { params = {} } = useRoute();
+  const { transcribedText = "", audioUri = "" } = params;
   const { addMeeting } = useMeetingContext();
 
   const [summary, setSummary] = useState("");
-  const [datesTxt, setDatesTxt] = useState("");
+  const [datesArr, setDatesArr] = useState([]);
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("⏳ جاري المعالجة…");
+  const [status, setStatus] = useState("⏳ جار المعالجة…");
 
-  // Auto-summarize on every focus, without returning a promise directly
+  const clean = (t) => (t || "").replace(/<.*?>/g, "").trim();
+
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       let cancelled = false;
-
-      const runSummarization = async () => {
+      (async () => {
         try {
           setLoading(true);
           await safeReleaseWhisper("pre-llama");
 
+          // تحميل النموذج
           const modelPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
           if (!(await RNFS.exists(modelPath))) {
             setStatus("⬇️ تنزيل النموذج…");
-            await RNFS.downloadFile({
-              fromUrl: MODEL_URL,
-              toFile: modelPath,
-              progressDivider: 5,
-              progress: ({ bytesWritten, contentLength }) =>
-                setStatus(
-                  `⬇️ ${Math.floor((bytesWritten / contentLength) * 100)}%`
-                ),
-            }).promise;
+            await RNFS.downloadFile({ fromUrl: MODEL_URL, toFile: modelPath })
+              .promise;
           }
-
           setStatus("⚙️ تحميل النموذج…");
           const ctx = await initLlama({
             model: modelPath,
@@ -69,49 +64,51 @@ export default function MeetingSummaryScreen() {
             n_gpu_layers: 0,
           });
 
-          setStatus("📝 تلخيص النص…");
+          // 1️⃣ Summarize
           const sumRes = await ctx.completion({
-            messages: [
-              { role: "system", content: "أنت مساعد ذكي يلخص النصوص." },
-              {
-                role: "user",
-                content: `لخص هذا النص:\n${transcribedText}`,
-              },
-            ],
-            n_predict: 800,
-          });
-          if (!cancelled) setSummary((sumRes?.text || "").trim());
-
-          setStatus("📆 استخراج التواريخ…");
-          const dateRes = await ctx.completion({
             messages: [
               {
                 role: "system",
-                content: "استخرج التواريخ فقط، سطر لكل تاريخ.",
+                content: "أنت مساعد ذكي يلخص النصوص بدون رموز.",
               },
               { role: "user", content: transcribedText },
             ],
-            n_predict: 400,
+            temperature: 0,
+            n_predict: 600,
           });
-          if (!cancelled)
-            setDatesTxt(
-              (dateRes?.text || "")
-                .split("\n")
-                .map((l) => l.trim())
-                .filter(Boolean)
-                .join("\n")
-            );
+          if (!cancelled) setSummary(clean(sumRes.text));
 
-          if (!cancelled) setStatus("✅ جاهز للحفظ");
+          // 2️⃣ Normalize & Extract
+          const normalized = normalizeArabicText(
+            transcribedText,
+            new Date(2025, 7, 8)
+          );
+          console.log("📄 Normalized >>>\n" + normalized);
+
+          const linesNorm = normalized.split("\n");
+          const linesOrig = transcribedText.split("\n");
+          const extracted = [];
+
+          linesNorm.forEach((ln, idx) => {
+            const dm = ln.match(/(\d{4}-\d{2}-\d{2})/);
+            if (!dm) return;
+            const tm = ln.match(/(\d{2}:\d{2})/);
+            extracted.push({
+              date: dm[1],
+              time: tm ? tm[1] : "",
+              title: linesOrig[idx]?.trim() || "",
+            });
+          });
+
+          console.log("🟢 Dates JSON >", JSON.stringify(extracted, null, 2));
+          if (!cancelled) setDatesArr(extracted);
+          if (!cancelled) setStatus("✅ جاهز");
         } catch (e) {
           if (!cancelled) Alert.alert("خطأ", e.message || "فشل المعالجة");
         } finally {
           if (!cancelled) setLoading(false);
         }
-      };
-
-      runSummarization();
-
+      })();
       return () => {
         cancelled = true;
         releaseAllLlama().catch(() => {});
@@ -120,15 +117,7 @@ export default function MeetingSummaryScreen() {
   );
 
   const handleSave = async () => {
-    if (!topic.trim()) {
-      Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
-      return;
-    }
-    const datesArr = datesTxt
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-
+    if (!topic.trim()) return Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
     await addMeeting(
       transcribedText,
       summary,
@@ -137,12 +126,7 @@ export default function MeetingSummaryScreen() {
       topic.trim()
     );
     Alert.alert("✅", "تم حفظ الاجتماع");
-
-    setTopic("");
-    setSummary("");
-    setDatesTxt("");
-
-    navigation.navigate("History");
+    navigation.goBack();
   };
 
   if (loading) {
@@ -154,38 +138,33 @@ export default function MeetingSummaryScreen() {
     );
   }
 
+  const pretty = datesArr.length
+    ? datesArr
+        .map((e) => [e.date, e.time, e.title].filter(Boolean).join(" | "))
+        .join("\n")
+    : "لا توجد تواريخ";
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {audioUri ? <AudioPlayer uri={audioUri} /> : null}
-
+      {audioUri && <AudioPlayer uri={audioUri} />}
       <Text style={styles.label}>موضوع الاجتماع:</Text>
       <TextInput
         style={styles.input}
-        placeholder="أدخل الموضوع هنا"
+        placeholder="أدخل الموضوع"
         value={topic}
         onChangeText={setTopic}
       />
-
-      <View style={styles.buttonRow}>
-        <Button title="تلخيص" onPress={() => runSummarization()} />
-        <Button
-          title="حفظ الاجتماع"
-          onPress={handleSave}
-          color={colors.primary}
-        />
-      </View>
-
+      <Button title="حفظ" onPress={handleSave} color={colors.primary} />
       <CustomCard
         title="ملخص الاجتماع"
         value={summary}
         onChangeText={setSummary}
         height={200}
       />
-
       <CustomCard
         title="تواريخ مهمة"
-        value={datesTxt}
-        onChangeText={setDatesTxt}
+        value={pretty}
+        editable={false}
         height={150}
       />
     </ScrollView>
@@ -199,30 +178,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
-  overlayText: {
-    marginTop: 8,
-    color: "#fff",
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 50,
-    backgroundColor: "#f2f2f2",
-  },
-  label: {
-    fontWeight: "bold",
-    marginVertical: 8,
-  },
+  overlayText: { marginTop: 8, color: "#fff" },
+  container: { padding: 20, paddingBottom: 50, backgroundColor: "#f2f2f2" },
+  label: { fontWeight: "bold", marginVertical: 8 },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 6,
     padding: 10,
     backgroundColor: "#fff",
-    marginBottom: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginBottom: 16,
   },
 });
