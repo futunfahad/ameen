@@ -222,12 +222,39 @@ const safeParseArrayEnhanced = (str) => {
   return [];
 };
 
-// Enhanced date extraction with comprehensive error handling
+// Split text into chunks for processing
+const splitTextIntoChunks = (text, maxChunkSize = 1000) => {
+  const chunks = [];
+  const sentences = text.split(/[.؟!]/).filter((s) => s.trim().length > 10);
+
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    if (
+      currentChunk.length + sentence.length > maxChunkSize &&
+      currentChunk.length > 0
+    ) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += (currentChunk ? ". " : "") + sentence;
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  console.log(`📝 Text split into ${chunks.length} chunks`);
+  return chunks;
+};
+
+// Enhanced date extraction with two-cycle approach
 const extractDatesWithDebugging = async (ctx, normalizedText) => {
   try {
-    console.log("📝 Starting enhanced date extraction...");
+    console.log("📝 Starting enhanced two-cycle date extraction...");
     console.log("📊 Input text length:", normalizedText.length);
-    console.log("📖 First 200 chars:", normalizedText.substring(0, 200));
+    console.log("📖 First 200 chars:", normalizedText);
 
     // Step 1: Quick regex check to see if dates exist
     const dateRegex = /\d{4}-\d{2}-\d{2}/g;
@@ -239,14 +266,18 @@ const extractDatesWithDebugging = async (ctx, normalizedText) => {
       return [];
     }
 
-    // Step 2: Enhanced LLM prompt with better instructions
-    console.log("🤖 Calling LLM for intelligent extraction...");
+    let allExtractedDates = [];
 
-    const datesRes = await ctx.completion({
-      messages: [
-        {
-          role: "system",
-          content: `أنت خبير في استخراج التواريخ من النصوص العربية.
+    // FIRST CYCLE: Process full text or large chunks
+    console.log("🔄 FIRST CYCLE: Processing full text...");
+
+    if (normalizedText.length <= 1200) {
+      // Process full text if small enough
+      const datesRes = await ctx.completion({
+        messages: [
+          {
+            role: "system",
+            content: `أنت خبير في استخراج التواريخ من النصوص العربية.
 
 المهمة:
 1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
@@ -263,29 +294,146 @@ const extractDatesWithDebugging = async (ctx, normalizedText) => {
 - JSON صحيح فقط، لا نصوص إضافية
 - إذا لم تجد تواريخ، أرجع []
 - عناوين المهام واضحة ومفيدة`,
-        },
-        {
-          role: "user",
-          content: `استخرج التواريخ والمهام من النص:\n\n${normalizedText.substring(
-            0,
-            1200
-          )}`,
-        },
-      ],
-      temperature: 0.05,
-      n_predict: 500,
-      stop: ["\n\n", "```", "---"],
-      top_p: 0.8,
-      top_k: 30,
-    });
+          },
+          {
+            role: "user",
+            content: `استخرج التواريخ والمهام من النص:\n\n${normalizedText}`,
+          },
+        ],
+        temperature: 0.05,
+        n_predict: 500,
+        stop: ["\n\n", "```", "---"],
+        top_p: 0.8,
+        top_k: 30,
+      });
 
-    console.log("🤖 LLM Raw Response:", datesRes.text?.substring(0, 300));
+      const firstCycleDates = safeParseArrayEnhanced(datesRes.text);
+      allExtractedDates.push(...firstCycleDates);
+      console.log(`✅ First cycle extracted ${firstCycleDates.length} dates`);
+    } else {
+      // Process in chunks
+      const chunks = splitTextIntoChunks(normalizedText, 1000);
 
-    // Step 3: Parse with enhanced strategies
-    let extractedDates = safeParseArrayEnhanced(datesRes.text);
+      for (let i = 0; i < chunks.length; i++) {
+        console.log(`📝 Processing chunk ${i + 1}/${chunks.length}`);
 
-    // Step 5: Final validation
-    const validatedDates = validateDatesEnhanced(extractedDates);
+        const chunkDatesRes = await ctx.completion({
+          messages: [
+            {
+              role: "system",
+              content: `أنت خبير في استخراج التواريخ من النصوص العربية.
+
+المهمة:
+1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
+2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
+3. إذا لم تجد وقت محدد، استخدم "09:00"
+
+الإخراج المطلوب - JSON فقط:
+[
+  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"},
+  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"}
+]
+
+قواعد صارمة:
+- JSON صحيح فقط، لا نصوص إضافية
+- إذا لم تجد تواريخ، أرجع []
+- عناوين المهام واضحة ومفيدة`,
+            },
+            {
+              role: "user",
+              content: `استخرج التواريخ والمهام من هذا الجزء من النص:\n\n${chunks[i]}`,
+            },
+          ],
+          temperature: 0.05,
+          n_predict: 400,
+          stop: ["\n\n", "```", "---"],
+          top_p: 0.8,
+          top_k: 30,
+        });
+
+        const chunkDates = safeParseArrayEnhanced(chunkDatesRes.text);
+        allExtractedDates.push(...chunkDates);
+        console.log(`✅ Chunk ${i + 1} extracted ${chunkDates.length} dates`);
+      }
+    }
+
+    console.log(
+      `🔄 FIRST CYCLE COMPLETE: Total extracted ${allExtractedDates.length} dates`
+    );
+
+    // SECOND CYCLE: Focus on potentially missed dates
+    console.log("🔄 SECOND CYCLE: Looking for missed dates...");
+
+    // Get all dates found by regex but not yet extracted by LLM
+    const extractedDateStrings = allExtractedDates.map((d) => d.date);
+    const missedDates = foundDates.filter(
+      (date) => !extractedDateStrings.includes(date)
+    );
+
+    console.log("🎯 Potentially missed dates:", missedDates);
+
+    if (missedDates.length > 0) {
+      // Create focused chunks around missed dates
+      for (const missedDate of missedDates) {
+        const dateIndex = normalizedText.indexOf(missedDate);
+        if (dateIndex !== -1) {
+          const contextStart = Math.max(0, dateIndex - 200);
+          const contextEnd = Math.min(normalizedText.length, dateIndex + 200);
+          const focusedContext = normalizedText.substring(
+            contextStart,
+            contextEnd
+          );
+
+          console.log(`🔍 Second cycle processing missed date: ${missedDate}`);
+
+          const secondCycleRes = await ctx.completion({
+            messages: [
+              {
+                role: "system",
+                content: `أنت خبير في استخراج التواريخ من النصوص العربية.
+
+المهمة:
+1. ابحث عن التاريخ ${missedDate} في النص
+2. اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
+3. إذا لم تجد وقت محدد، استخدم "09:00"
+
+الإخراج المطلوب - JSON فقط:
+[
+  {"date": "${missedDate}", "time": "HH:MM", "title": "وصف المهمة"}
+]
+
+قواعد صارمة:
+- JSON صحيح فقط، لا نصوص إضافية
+- ركز على التاريخ ${missedDate} فقط
+- اكتب عنوان مهمة واضح ومفيد`,
+              },
+              {
+                role: "user",
+                content: `استخرج المهمة للتاريخ ${missedDate} من هذا النص:\n\n${focusedContext}`,
+              },
+            ],
+            temperature: 0.05,
+            n_predict: 200,
+            stop: ["\n\n", "```", "---"],
+            top_p: 0.8,
+            top_k: 30,
+          });
+
+          const secondCycleDates = safeParseArrayEnhanced(secondCycleRes.text);
+          if (secondCycleDates.length > 0) {
+            allExtractedDates.push(...secondCycleDates);
+            console.log(`✅ Second cycle recovered date: ${missedDate}`);
+          }
+        }
+      }
+    }
+
+    console.log(
+      `🔄 SECOND CYCLE COMPLETE: Total final extracted ${allExtractedDates.length} dates`
+    );
+
+    // Step 3: Final validation
+    const validatedDates = validateDatesEnhanced(allExtractedDates);
     console.log("✅ Final extraction result:", validatedDates.length, "dates");
 
     return validatedDates;
@@ -428,10 +576,10 @@ export default function MeetingSummaryScreen() {
             }
           }
 
-          // Step 2: Extract dates and create tasks with enhanced method
+          // Step 2: Extract dates and create tasks with enhanced two-cycle method
           if (!cancelled) {
-            setStatus("📅 استخراج التواريخ والمهام...");
-            console.log("📅 Starting date extraction...");
+            setStatus("📅 استخراج التواريخ والمهام (الدورة الأولى)...");
+            console.log("📅 Starting two-cycle date extraction...");
 
             try {
               const extractedDates = await extractDatesWithDebugging(
@@ -636,7 +784,7 @@ export default function MeetingSummaryScreen() {
   );
 }
 
-// -----------------------------
+//-------------------------
 // Styles
 // -----------------------------
 const styles = StyleSheet.create({
