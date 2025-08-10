@@ -117,7 +117,7 @@ export default function HistoryScreen() {
                     <MaterialCommunityIcons
                       name="delete"
                       size={26}
-                      color="#d11a2a"
+                      color={colors.secondary}
                     />
                   </TouchableOpacity>
                 </View>

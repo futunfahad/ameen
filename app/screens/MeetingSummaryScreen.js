@@ -1,4 +1,3 @@
-// screens/MeetingSummaryScreen.js
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -9,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Modal,
 } from "react-native";
 import {
   useRoute,
@@ -96,64 +96,22 @@ const validateDatesEnhanced = (dates) => {
   return validated;
 };
 
-// Simple regex-based date extraction as fallback
-const simpleDateExtraction = (normalizedText) => {
-  console.log("🔍 Running simple date extraction as backup...");
-
+// Find all dates with regex
+const findAllDatesInText = (text) => {
   const dateRegex = /\d{4}-\d{2}-\d{2}/g;
-  const dates = normalizedText.match(dateRegex) || [];
+  const dates = [...new Set(text.match(dateRegex) || [])]; // Remove duplicates
+  console.log("📅 All dates found in text:", dates);
+  return dates;
+};
 
-  console.log("📅 Regex found dates:", dates);
+// Create context for manual date input
+const createContextForDate = (text, date) => {
+  const dateIndex = text.indexOf(date);
+  if (dateIndex === -1) return "";
 
-  if (dates.length === 0) {
-    return [];
-  }
-
-  const found = [];
-
-  dates.forEach((date, index) => {
-    // Find context around the date
-    const dateIndex = normalizedText.indexOf(date);
-    const contextStart = Math.max(0, dateIndex - 80);
-    const contextEnd = Math.min(normalizedText.length, dateIndex + 80);
-    const context = normalizedText.substring(contextStart, contextEnd);
-
-    // Try to extract meaningful context
-    let title = `مهمة مجدولة ${index + 1}`;
-
-    // Split context into phrases and find relevant ones
-    const phrases = context
-      .split(/[،.؛]/)
-      .filter((phrase) => phrase.trim().length > 5);
-    const relevantPhrase = phrases.find(
-      (phrase) =>
-        phrase.includes(date) ||
-        Math.abs(context.indexOf(phrase) - context.indexOf(date)) < 40
-    );
-
-    if (relevantPhrase) {
-      let cleanTitle = relevantPhrase
-        .replace(date, "")
-        .replace(/[هـم]\s*$/, "")
-        .replace(/^\s*(يوم|في|من|إلى|بتاريخ)\s*/, "")
-        .trim();
-
-      // Take meaningful keywords for title
-      const keywords = cleanTitle.split(/\s+/).slice(0, 6).join(" ");
-      if (keywords && keywords.length >= 5) {
-        title = keywords;
-      }
-    }
-
-    found.push({
-      date: date,
-      time: "09:00",
-      title: title,
-    });
-  });
-
-  console.log("📝 Simple extraction results:", found);
-  return found;
+  const contextStart = Math.max(0, dateIndex - 150);
+  const contextEnd = Math.min(text.length, dateIndex + 150);
+  return text.substring(contextStart, contextEnd);
 };
 
 // Enhanced JSON parsing with multiple strategies
@@ -203,7 +161,7 @@ const safeParseArrayEnhanced = (str) => {
   }
 
   // Strategy 3: Extract JSON array patterns
-  const arrayPatterns = [/\[[\s\S]*?\]/g, /\{[\s\S]*?\}/g];
+  const arrayPatterns = [/\[[\s\S]*?\]/g];
 
   for (const regex of arrayPatterns) {
     const matches = str.match(regex);
@@ -223,7 +181,7 @@ const safeParseArrayEnhanced = (str) => {
 };
 
 // Split text into chunks for processing
-const splitTextIntoChunks = (text, maxChunkSize = 1000) => {
+const splitTextIntoChunks = (text, maxChunkSize = 1200) => {
   const chunks = [];
   const sentences = text.split(/[.؟!]/).filter((s) => s.trim().length > 10);
 
@@ -249,29 +207,25 @@ const splitTextIntoChunks = (text, maxChunkSize = 1000) => {
   return chunks;
 };
 
-// Enhanced date extraction with two-cycle approach
-const extractDatesWithDebugging = async (ctx, normalizedText) => {
+// Optimized date extraction with only 2 LLM calls
+const extractDatesOptimized = async (ctx, normalizedText) => {
   try {
-    console.log("📝 Starting enhanced two-cycle date extraction...");
-    console.log("📊 Input text length:", normalizedText.length);
-    console.log("📖 First 200 chars:", normalizedText);
+    console.log("📝 Starting optimized date extraction (2 calls max)...");
 
-    // Step 1: Quick regex check to see if dates exist
-    const dateRegex = /\d{4}-\d{2}-\d{2}/g;
-    const foundDates = normalizedText.match(dateRegex) || [];
-    console.log("🎯 Regex found dates:", foundDates);
+    // Find all dates first
+    const allFoundDates = findAllDatesInText(normalizedText);
 
-    if (foundDates.length === 0) {
-      console.log("⚠️ No dates found in text, returning empty array");
-      return [];
+    if (allFoundDates.length === 0) {
+      console.log("⚠️ No dates found in text");
+      return { extractedDates: [], missedDates: [] };
     }
 
     let allExtractedDates = [];
 
-    // FIRST CYCLE: Process full text or large chunks
-    console.log("🔄 FIRST CYCLE: Processing full text...");
+    // FIRST CALL: Process full text or in chunks
+    console.log("🔄 CALL 1: Processing text for date extraction...");
 
-    if (normalizedText.length <= 1200) {
+    if (normalizedText.length <= 1500) {
       // Process full text if small enough
       const datesRes = await ctx.completion({
         messages: [
@@ -284,6 +238,8 @@ const extractDatesWithDebugging = async (ctx, normalizedText) => {
 2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
 3. إذا لم تجد وقت محدد، استخدم "09:00"
 
+التواريخ المتوقعة في النص: ${allFoundDates.join(", ")}
+
 الإخراج المطلوب - JSON فقط:
 [
   {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"},
@@ -292,7 +248,7 @@ const extractDatesWithDebugging = async (ctx, normalizedText) => {
 
 قواعد صارمة:
 - JSON صحيح فقط، لا نصوص إضافية
-- إذا لم تجد تواريخ، أرجع []
+- ركز على التواريخ المذكورة أعلاه
 - عناوين المهام واضحة ومفيدة`,
           },
           {
@@ -301,148 +257,164 @@ const extractDatesWithDebugging = async (ctx, normalizedText) => {
           },
         ],
         temperature: 0.05,
-        n_predict: 500,
+        n_predict: 600,
         stop: ["\n\n", "```", "---"],
         top_p: 0.8,
         top_k: 30,
       });
 
-      const firstCycleDates = safeParseArrayEnhanced(datesRes.text);
-      allExtractedDates.push(...firstCycleDates);
-      console.log(`✅ First cycle extracted ${firstCycleDates.length} dates`);
+      allExtractedDates = safeParseArrayEnhanced(datesRes.text);
     } else {
-      // Process in chunks
-      const chunks = splitTextIntoChunks(normalizedText, 1000);
+      // Process in chunks - but still count as one "call" conceptually
+      const chunks = splitTextIntoChunks(normalizedText, 1200);
 
-      for (let i = 0; i < chunks.length; i++) {
-        console.log(`📝 Processing chunk ${i + 1}/${chunks.length}`);
+      for (const chunk of chunks) {
+        const chunkDates = findAllDatesInText(chunk);
 
-        const chunkDatesRes = await ctx.completion({
-          messages: [
-            {
-              role: "system",
-              content: `أنت خبير في استخراج التواريخ من النصوص العربية.
-
-المهمة:
-1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
-2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
-3. إذا لم تجد وقت محدد، استخدم "09:00"
-
-الإخراج المطلوب - JSON فقط:
-[
-  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"},
-  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"}
-]
-
-قواعد صارمة:
-- JSON صحيح فقط، لا نصوص إضافية
-- إذا لم تجد تواريخ، أرجع []
-- عناوين المهام واضحة ومفيدة`,
-            },
-            {
-              role: "user",
-              content: `استخرج التواريخ والمهام من هذا الجزء من النص:\n\n${chunks[i]}`,
-            },
-          ],
-          temperature: 0.05,
-          n_predict: 400,
-          stop: ["\n\n", "```", "---"],
-          top_p: 0.8,
-          top_k: 30,
-        });
-
-        const chunkDates = safeParseArrayEnhanced(chunkDatesRes.text);
-        allExtractedDates.push(...chunkDates);
-        console.log(`✅ Chunk ${i + 1} extracted ${chunkDates.length} dates`);
-      }
-    }
-
-    console.log(
-      `🔄 FIRST CYCLE COMPLETE: Total extracted ${allExtractedDates.length} dates`
-    );
-
-    // SECOND CYCLE: Focus on potentially missed dates
-    console.log("🔄 SECOND CYCLE: Looking for missed dates...");
-
-    // Get all dates found by regex but not yet extracted by LLM
-    const extractedDateStrings = allExtractedDates.map((d) => d.date);
-    const missedDates = foundDates.filter(
-      (date) => !extractedDateStrings.includes(date)
-    );
-
-    console.log("🎯 Potentially missed dates:", missedDates);
-
-    if (missedDates.length > 0) {
-      // Create focused chunks around missed dates
-      for (const missedDate of missedDates) {
-        const dateIndex = normalizedText.indexOf(missedDate);
-        if (dateIndex !== -1) {
-          const contextStart = Math.max(0, dateIndex - 200);
-          const contextEnd = Math.min(normalizedText.length, dateIndex + 200);
-          const focusedContext = normalizedText.substring(
-            contextStart,
-            contextEnd
-          );
-
-          console.log(`🔍 Second cycle processing missed date: ${missedDate}`);
-
-          const secondCycleRes = await ctx.completion({
+        if (chunkDates.length > 0) {
+          const chunkRes = await ctx.completion({
             messages: [
               {
                 role: "system",
                 content: `أنت خبير في استخراج التواريخ من النصوص العربية.
 
 المهمة:
-1. ابحث عن التاريخ ${missedDate} في النص
-2. اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
+1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
+2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة)
 3. إذا لم تجد وقت محدد، استخدم "09:00"
+
+التواريخ في هذا الجزء: ${chunkDates.join(", ")}
 
 الإخراج المطلوب - JSON فقط:
 [
-  {"date": "${missedDate}", "time": "HH:MM", "title": "وصف المهمة"}
+  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"}
 ]
 
 قواعد صارمة:
-- JSON صحيح فقط، لا نصوص إضافية
-- ركز على التاريخ ${missedDate} فقط
-- اكتب عنوان مهمة واضح ومفيد`,
+- JSON صحيح فقط
+- ركز على التواريخ المذكورة أعلاه`,
               },
               {
                 role: "user",
-                content: `استخرج المهمة للتاريخ ${missedDate} من هذا النص:\n\n${focusedContext}`,
+                content: `استخرج التواريخ من:\n\n${chunk}`,
               },
             ],
             temperature: 0.05,
-            n_predict: 200,
-            stop: ["\n\n", "```", "---"],
+            n_predict: 400,
+            stop: ["\n\n", "```"],
             top_p: 0.8,
             top_k: 30,
           });
 
-          const secondCycleDates = safeParseArrayEnhanced(secondCycleRes.text);
-          if (secondCycleDates.length > 0) {
-            allExtractedDates.push(...secondCycleDates);
-            console.log(`✅ Second cycle recovered date: ${missedDate}`);
-          }
+          const chunkDates = safeParseArrayEnhanced(chunkRes.text);
+          allExtractedDates.push(...chunkDates);
         }
       }
     }
 
     console.log(
-      `🔄 SECOND CYCLE COMPLETE: Total final extracted ${allExtractedDates.length} dates`
+      `✅ CALL 1 COMPLETE: Extracted ${allExtractedDates.length} dates`
     );
 
-    // Step 3: Final validation
-    const validatedDates = validateDatesEnhanced(allExtractedDates);
-    console.log("✅ Final extraction result:", validatedDates.length, "dates");
+    // Find missed dates
+    const extractedDateStrings = allExtractedDates.map((d) => d.date);
+    const missedDates = allFoundDates.filter(
+      (date) => !extractedDateStrings.includes(date)
+    );
 
-    return validatedDates;
+    console.log("🎯 Missed dates after first call:", missedDates);
+
+    // SECOND CALL: Try to get missed dates (only if there are any)
+    if (missedDates.length > 0) {
+      console.log("🔄 CALL 2: Processing missed dates...");
+
+      // Create focused context for all missed dates
+      const missedDateContexts = missedDates
+        .map((date) => ({
+          date,
+          context: createContextForDate(normalizedText, date),
+        }))
+        .filter((item) => item.context.length > 0);
+
+      if (missedDateContexts.length > 0) {
+        const combinedContext = missedDateContexts
+          .map((item) => `التاريخ ${item.date}:\n${item.context}`)
+          .join("\n\n---\n\n");
+
+        const secondCallRes = await ctx.completion({
+          messages: [
+            {
+              role: "system",
+              content: `أنت خبير في استخراج التواريخ من النصوص العربية.
+
+المهمة: استخرج المهام للتواريخ المحددة فقط: ${missedDates.join(", ")}
+
+الإخراج المطلوب - JSON فقط:
+[
+  {"date": "YYYY-MM-DD", "time": "HH:MM", "title": "وصف المهمة"}
+]
+
+قواعد:
+- JSON صحيح فقط
+- ركز على التواريخ المحددة أعلاه فقط
+- إذا لم تجد معلومات كافية لتاريخ معين، تجاهله`,
+            },
+            {
+              role: "user",
+              content: `استخرج المهام للتواريخ المحددة من هذه السياقات:\n\n${combinedContext}`,
+            },
+          ],
+          temperature: 0.05,
+          n_predict: 400,
+          stop: ["\n\n", "```"],
+          top_p: 0.8,
+          top_k: 30,
+        });
+
+        const secondCallDates = safeParseArrayEnhanced(secondCallRes.text);
+        allExtractedDates.push(...secondCallDates);
+
+        // Update missed dates list
+        const newExtractedDateStrings = allExtractedDates.map((d) => d.date);
+        const finalMissedDates = allFoundDates.filter(
+          (date) => !newExtractedDateStrings.includes(date)
+        );
+
+        console.log(
+          `✅ CALL 2 COMPLETE: Extracted ${secondCallDates.length} more dates`
+        );
+        console.log(`🎯 Final missed dates: ${finalMissedDates.length}`);
+
+        return {
+          extractedDates: validateDatesEnhanced(allExtractedDates),
+          missedDates: finalMissedDates.map((date) => ({
+            date,
+            context: createContextForDate(normalizedText, date),
+          })),
+        };
+      }
+    }
+
+    // No missed dates or couldn't create context for them
+    return {
+      extractedDates: validateDatesEnhanced(allExtractedDates),
+      missedDates: missedDates.map((date) => ({
+        date,
+        context: createContextForDate(normalizedText, date),
+      })),
+    };
   } catch (error) {
     console.error("❌ Date extraction error:", error);
 
-    // Emergency fallback
-    console.log("🆘 Using emergency regex fallback");
-    return simpleDateExtraction(normalizedText);
+    // Emergency fallback - create manual input for all found dates
+    const allFoundDates = findAllDatesInText(normalizedText);
+    return {
+      extractedDates: [],
+      missedDates: allFoundDates.map((date) => ({
+        date,
+        context: createContextForDate(normalizedText, date),
+      })),
+    };
   }
 };
 
@@ -473,6 +445,95 @@ const initializeLlamaForArabic = async (modelPath) => {
 };
 
 // -----------------------------
+// Manual Date Input Component
+// -----------------------------
+const ManualDateInputModal = ({ visible, missedDates, onSubmit, onCancel }) => {
+  const [dateInputs, setDateInputs] = useState({});
+
+  React.useEffect(() => {
+    if (visible && missedDates.length > 0) {
+      const initialInputs = {};
+      missedDates.forEach((item) => {
+        initialInputs[item.date] = "";
+      });
+      setDateInputs(initialInputs);
+    }
+  }, [visible, missedDates]);
+
+  const handleSubmit = () => {
+    const results = missedDates.map((item) => ({
+      date: item.date,
+      time: "09:00",
+      title: dateInputs[item.date] || `مهمة في ${item.date}`,
+    }));
+    onSubmit(results);
+  };
+
+  const updateInput = (date, value) => {
+    setDateInputs((prev) => ({
+      ...prev,
+      [date]: value,
+    }));
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>إدخال المهام المتبقية</Text>
+          <Text style={styles.modalSubtitle}>
+            يرجى إدخال وصف لكل مهمة من المهام التالية:
+          </Text>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          {missedDates.map((item, index) => (
+            <View key={item.date} style={styles.dateInputContainer}>
+              <Text style={styles.dateLabel}>📅 {item.date}</Text>
+
+              {item.context && (
+                <Text style={styles.contextText} numberOfLines={3}>
+                  السياق: {item.context}
+                </Text>
+              )}
+
+              <TextInput
+                style={styles.taskInput}
+                placeholder="أدخل وصف المهمة..."
+                value={dateInputs[item.date] || ""}
+                onChangeText={(text) => updateInput(item.date, text)}
+                multiline
+                textAlign="right"
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.modalButton, styles.cancelButton]}
+            onPress={onCancel}
+          >
+            <Text style={styles.cancelButtonText}>تخطي</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modalButton, styles.submitButton]}
+            onPress={handleSubmit}
+          >
+            <Text style={styles.submitButtonText}>حفظ المهام</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// -----------------------------
 // Main Component
 // -----------------------------
 export default function MeetingSummaryScreen() {
@@ -486,6 +547,10 @@ export default function MeetingSummaryScreen() {
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("⏳ جار المعالجة...");
+
+  // Manual date input state
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [missedDates, setMissedDates] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -514,7 +579,6 @@ export default function MeetingSummaryScreen() {
           // Normalize the transcript
           const normalized = normalizeArabicText(transcribedText, new Date());
           console.log("📝 Normalized text length:", normalized.length);
-          console.log("📝 Normalized sample:", normalized.substring(0, 300));
 
           // Step 1: Generate comprehensive summary
           if (!cancelled) {
@@ -543,7 +607,6 @@ export default function MeetingSummaryScreen() {
 **المهام والمسؤوليات**
 - من سيقوم بماذا
 - المسؤوليات المحددة
-
 
 **الخطوات التالية**
 - الإجراءات المقررة
@@ -576,36 +639,47 @@ export default function MeetingSummaryScreen() {
             }
           }
 
-          // Step 2: Extract dates and create tasks with enhanced two-cycle method
+          // Step 2: Extract dates with optimized 2-call approach
           if (!cancelled) {
-            setStatus("📅 استخراج التواريخ والمهام (الدورة الأولى)...");
-            console.log("📅 Starting two-cycle date extraction...");
+            setStatus("📅 استخراج التواريخ والمهام (معالجة محسنة)...");
+            console.log("📅 Starting optimized date extraction...");
 
             try {
-              const extractedDates = await extractDatesWithDebugging(
-                ctx,
-                normalized
-              );
+              const { extractedDates, missedDates: missed } =
+                await extractDatesOptimized(ctx, normalized);
+
               setDatesArr(extractedDates);
 
-              if (extractedDates.length === 0) {
-                console.log("⚠️ No dates extracted");
-                setStatus("⚠️ لم يتم العثور على تواريخ في النص");
-              } else {
-                console.log(
-                  `✅ Successfully extracted ${extractedDates.length} dates`
+              if (missed.length > 0) {
+                setMissedDates(missed);
+                setStatus(
+                  `✅ تم استخراج ${extractedDates.length} مهام | ${missed.length} تحتاج إدخال يدوي`
                 );
+              } else {
                 setStatus(`✅ تم استخراج ${extractedDates.length} مهام مجدولة`);
               }
+
+              console.log(
+                `✅ Extracted ${extractedDates.length} dates automatically`
+              );
+              console.log(`⚠️ ${missed.length} dates need manual input`);
             } catch (dateError) {
               console.error("❌ Date extraction failed:", dateError);
               setStatus("❌ فشل في استخراج التواريخ");
 
-              // Final fallback
-              const fallbackDates = simpleDateExtraction(normalized);
-              setDatesArr(fallbackDates);
+              // Final fallback - manual input for all dates
+              const allDates = findAllDatesInText(normalized);
+              setMissedDates(
+                allDates.map((date) => ({
+                  date,
+                  context: createContextForDate(normalized, date),
+                }))
+              );
             }
           }
+
+          // Release LLM resources
+          releaseAllLlama().catch(() => {});
 
           if (!cancelled) {
             setStatus("✅ اكتمل التحليل");
@@ -631,11 +705,44 @@ export default function MeetingSummaryScreen() {
     }, [transcribedText])
   );
 
+  // Handle manual date input submission
+  const handleManualDateSubmit = (manualDates) => {
+    const validatedManualDates = validateDatesEnhanced(manualDates);
+    setDatesArr((prev) => [...prev, ...validatedManualDates]);
+    setMissedDates([]);
+    setShowManualInput(false);
+
+    console.log(`✅ Added ${validatedManualDates.length} manual dates`);
+    Alert.alert("✅", `تم إضافة ${validatedManualDates.length} مهام يدوياً`);
+  };
+
+  const handleManualDateCancel = () => {
+    setMissedDates([]);
+    setShowManualInput(false);
+  };
+
   const handleSave = async () => {
     if (!topic.trim()) {
       return Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
     }
 
+    // Check if there are missed dates
+    if (missedDates.length > 0) {
+      Alert.alert(
+        "مهام غير مكتملة",
+        `يوجد ${missedDates.length} مهام تحتاج إدخال يدوي. هل تريد إضافتها الآن أم حفظ الاجتماع بالمهام الحالية؟`,
+        [
+          { text: "حفظ كما هو", onPress: () => saveNow() },
+          { text: "إدخال المهام", onPress: () => setShowManualInput(true) },
+        ]
+      );
+      return;
+    }
+
+    saveNow();
+  };
+
+  const saveNow = async () => {
     try {
       const cleanDates = validateDatesEnhanced(datesArr);
       await addMeeting(
@@ -695,15 +802,16 @@ export default function MeetingSummaryScreen() {
     }
   };
 
+  const handleAddMissedTasks = () => {
+    setShowManualInput(true);
+  };
+
   // Loading screen
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{status}</Text>
-        <Text style={styles.debugInfo}>
-          {datesArr.length > 0 && `تم العثور على ${datesArr.length} مهام`}
-        </Text>
       </View>
     );
   }
@@ -760,20 +868,6 @@ export default function MeetingSummaryScreen() {
             },
           ]}
         />
-
-        {/* Debug Info (remove in production) */}
-        {__DEV__ && (
-          <View style={styles.debugContainer}>
-            <Text style={styles.debugTitle}>🐛 معلومات التطوير</Text>
-            <Text style={styles.debugText}>
-              النص الأصلي: {transcribedText.length} حرف
-            </Text>
-            <Text style={styles.debugText}>
-              التواريخ المستخرجة: {datesArr.length}
-            </Text>
-            <Text style={styles.debugText}>حالة المعالجة: {status}</Text>
-          </View>
-        )}
       </ScrollView>
 
       {/* Save Button */}
