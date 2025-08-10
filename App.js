@@ -26,8 +26,6 @@ import ArchiveScreen from "./app/screens/ArchiveScreen";
 import CustomDrawer from "./app/components/CustomDrawer";
 
 const Drawer = createDrawerNavigator();
-I18nManager.forceRTL(false);
-I18nManager.allowRTL(false);
 
 // Header Left: Back Arrow or Logo
 function CustomHeaderLeft({ navigation }) {
@@ -39,11 +37,7 @@ function CustomHeaderLeft({ navigation }) {
           onPress={() => navigation.goBack()}
           style={styles.iconButton}
         >
-          <Icon
-            name={I18nManager.isRTL ? "arrow-right" : "arrow-left"}
-            size={24}
-            color={colors.secondary}
-          />
+          <Icon name="arrow-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
       ) : (
         <Image source={require("./app/assets/logo.png")} style={styles.logo} />
@@ -88,6 +82,10 @@ export default function App() {
             headerStyle: { backgroundColor: colors.white },
             headerTintColor: colors.secondary,
             headerTitleAlign: "center",
+            headerTitleStyle: {
+              paddingBottom: 15, // Adjust bottom padding for text
+              fontSize: 25, // Optional: Adjust font size
+            },
             headerLeft: () => <CustomHeaderLeft navigation={navigation} />,
             headerRight: () => <CustomHeaderRight navigation={navigation} />,
             headerLeftContainerStyle: { paddingLeft: 15 },

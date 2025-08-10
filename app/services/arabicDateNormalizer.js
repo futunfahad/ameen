@@ -1,8 +1,26 @@
 // utils/arabicDateNormalizer.js
+/**
+ * Arabic Date and Time Normalizer
+ *
+ * This utility converts Arabic date and time expressions (both formal and slang)
+ * into standardized formats: YYYY-MM-DD for dates and HH:MM (24h) for times.
+ *
+ * Features:
+ * - Hijri calendar dates with flexible month name variants
+ * - Gregorian calendar dates with Arabic month names
+ * - Relative date expressions (tomorrow, next week, etc.)
+ * - Gulf/Khaligi Arabic slang support
+ * - Textual and numeric time expressions
+ * - Weekday references
+ * - Arabic numeral conversion
+ * - Diacritics and formatting normalization
+ */
+
 import { toGregorian, toHijri } from "hijri-converter";
 import { format, addDays } from "date-fns";
 
-/* === Maps === */
+/* === Weekday Mapping === */
+// Maps Arabic weekday names to JavaScript day indices (0=Sunday, 6=Saturday)
 const WD = {
   السبت: 6,
   الأحد: 0,
@@ -17,7 +35,8 @@ const WD = {
   الجمعة: 5,
 };
 
-// Allow variants via a tolerant Hijri month regex (no need to pre-normalize months)
+/* === Hijri Month Pattern === */
+// Flexible regex pattern for Hijri months that accepts various spellings and formats
 const HIJRI_MONTH_PATTERN = [
   "محرم",
   "صفر",
@@ -29,10 +48,12 @@ const HIJRI_MONTH_PATTERN = [
   "شعبان",
   "رمضان",
   "شوال",
-  "ذ[ويى]\\s*القعد(?:ة|ه|ى)", // more flexible endings
-  "ذ[ويى]\\s*الحج(?:ة|ه|ى)", // more flexible endings
+  "ذ[ويى]\\s*القعد(?:ة|ه|ى)", // flexible endings for ذو القعدة
+  "ذ[ويى]\\s*الحج(?:ة|ه|ى)", // flexible endings for ذو الحجة
 ].join("|");
 
+/* === Gregorian Month Mapping === */
+// Maps Arabic month names to month numbers (1-12)
 const GM = {
   يناير: 1,
   فبراير: 2,
@@ -51,7 +72,8 @@ const GM = {
   ديسمبر: 12,
 };
 
-/* Arabic digits → ASCII */
+/* === Arabic to ASCII Numeral Conversion === */
+// Maps Arabic-Indic digits to ASCII digits
 const AR_NUM = {
   "٠": 0,
   "١": 1,
@@ -64,17 +86,28 @@ const AR_NUM = {
   "٨": 8,
   "٩": 9,
 };
+
+/**
+ * Converts Arabic-Indic digits to ASCII digits
+ * @param {string} s - String containing Arabic digits
+ * @returns {string} String with ASCII digits
+ */
 const arDigits = (s) => s.replace(/[٠-٩]/g, (d) => AR_NUM[d]);
 
-/* Remove harakat/diacritics + kashida + non-breaking spaces */
+/**
+ * Removes Arabic diacritics, kashida, and normalizes whitespace
+ * @param {string} s - String to normalize
+ * @returns {string} Cleaned string
+ */
 const stripHarakat = (s) =>
   s
-    .replace(/[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F]/g, "") // harakat
-    .replace(/\u0640/g, "") // tatweel
-    .replace(/\u00A0/g, " ") // NBSP
-    .replace(/\s+/g, " "); // collapse
+    .replace(/[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F]/g, "") // Remove harakat/diacritics
+    .replace(/\u0640/g, "") // Remove tatweel (kashida)
+    .replace(/\u00A0/g, " ") // Replace non-breaking spaces with regular spaces
+    .replace(/\s+/g, " "); // Collapse multiple spaces
 
-/* textual hours -> number */
+/* === Textual Hour Mapping === */
+// Maps Arabic textual hours to numeric values (1-12)
 const TEXT_HOURS = {
   الأولى: 1,
   الاولى: 1,
@@ -93,13 +126,28 @@ const TEXT_HOURS = {
   "الثانية عشرة": 12,
 };
 
+/**
+ * Converts 12-hour time to 24-hour format with smart AM/PM detection
+ * @param {number} h - Hour (1-12)
+ * @param {number} m - Minute (0-59)
+ * @param {string} hints - Context hints for AM/PM determination
+ * @returns {string} Time in HH:MM 24-hour format
+ */
 function smartTime(h, m, hints) {
   const txt = hints || "";
+  // Explicit PM indicators
   if (/(مساء|عصر|بعد الظهر|ليل)/i.test(txt) && h < 12) h += 12;
-  else if (!/(صباح|ص|AM)/i.test(txt) && h >= 1 && h <= 5) h += 12; // default PM window
+  // Default PM window for hours 1-5 without explicit AM indicators
+  else if (!/(صباح|ص|AM)/i.test(txt) && h >= 1 && h <= 5) h += 12;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/**
+ * Calculates the next occurrence of a specific weekday
+ * @param {string} name - Arabic weekday name
+ * @param {Date} base - Base date for calculation
+ * @returns {string|null} Next weekday in YYYY-MM-DD format or null if invalid
+ */
 function nextWeekday(name, base) {
   const idx = WD[name.trim().replace(/^يوم\s*/, "")];
   if (idx == null) return null;
@@ -107,6 +155,14 @@ function nextWeekday(name, base) {
   return format(addDays(base, diff), "yyyy-MM-dd");
 }
 
+/**
+ * Converts Hijri date to Gregorian date
+ * @param {number} day - Hijri day
+ * @param {string} monthName - Hijri month name in Arabic
+ * @param {number|null} year - Hijri year (optional, uses current if null)
+ * @param {Date} base - Base date for current year calculation
+ * @returns {string|null} Gregorian date in YYYY-MM-DD format or null if invalid
+ */
 function hijriToGreg(day, monthName, year, base) {
   const nowH = toHijri(
     base.getFullYear(),
@@ -115,7 +171,11 @@ function hijriToGreg(day, monthName, year, base) {
   ).hy;
   const hy = year != null ? year : nowH;
 
-  // map tolerant names to numeric month:
+  /**
+   * Maps tolerant Hijri month names to numeric month (1-12)
+   * @param {string} name - Month name to match
+   * @returns {number|null} Month number or null if not found
+   */
   const hm = (name) => {
     name = name.toLowerCase().replace(/\s+/g, " ");
     if (/محرم|١/.test(name)) return 1;
@@ -153,19 +213,31 @@ function hijriToGreg(day, monthName, year, base) {
 }
 
 /**
- * normalizeArabicText:
- *  - turns every Arabic date/time pattern in each line into:
- *      YYYY-MM-DD and HH:MM (24h)
- *  - keeps the rest of the line (title)
+ * Main function: normalizes Arabic text containing date/time expressions
+ *
+ * Process:
+ * 1. Sanitizes text (converts digits, removes diacritics)
+ * 2. Converts Hijri dates to Gregorian format
+ * 3. Converts Gregorian dates with Arabic months
+ * 4. Handles relative date expressions (including Gulf slang)
+ * 5. Converts textual time expressions
+ * 6. Converts numeric time expressions
+ * 7. Handles standalone weekday references
+ * 8. Cleans up spacing
+ *
+ * @param {string} raw - Raw Arabic text with date/time expressions
+ * @param {Date} base - Base date for relative calculations (defaults to now)
+ * @returns {string} Normalized text with standardized dates and times
  */
 export function normalizeArabicText(raw, base = new Date()) {
   return raw
     .split(/\n+/)
     .map((line) => {
-      // 0) sanitize line (digits + harakat)
+      // Step 0: Sanitize line (convert Arabic digits and remove diacritics)
       let t = stripHarakat(arDigits(line));
 
-      // 1) Hijri dates (tolerant)
+      // Step 1: Convert Hijri dates with tolerant month matching
+      // Matches: "15 رمضان 1445" or "يوم 3 شعبان" etc.
       const hijriRe = new RegExp(
         String.raw`(?:يوم\s*)?(\d{1,2})\s+(${HIJRI_MONTH_PATTERN})(?:\s*(?:هـ|ه)?\s*(\d{4})?)?`,
         "gi"
@@ -175,7 +247,8 @@ export function normalizeArabicText(raw, base = new Date()) {
         (_, d, mon, y) => ` ${hijriToGreg(+d, mon, y ? +y : null, base)} `
       );
 
-      // 2) Gregorian Arabic month
+      // Step 2: Convert Gregorian dates with Arabic month names
+      // Matches: "25 ديسمبر 2024" or "5 يناير" etc.
       t = t.replace(
         /(\d{1,2})\s+(يناير|فبراير|مارس|ابريل|إبريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|اكتوبر|أكتوبر|نوفمبر|ديسمبر)(?:\s+(\d{4}))?/gi,
         (_, d, mon, y) => {
@@ -185,16 +258,28 @@ export function normalizeArabicText(raw, base = new Date()) {
         }
       );
 
-      // 3) Relative words
+      // Step 3: Handle relative date expressions (formal Arabic + Gulf slang)
       t = t
+        // Day after tomorrow (formal)
         .replace(/بعد غد/gi, ` ${format(addDays(base, 2), "yyyy-MM-dd")} `)
-        .replace(/غدًا|غدا/gi, ` ${format(addDays(base, 1), "yyyy-MM-dd")} `)
-        .replace(
-          /الأسبوع\s+(?:المقبل|القادم)/gi,
-          ` ${format(addDays(base, 7), "yyyy-MM-dd")} `
-        );
 
-      // 4) textual time: "الساعة الثالثة (صباحًا|مساءً|عصرًا)?"
+        // Tomorrow variations (formal and Gulf slang)
+        .replace(
+          /غدًا|غدا|بكره|بكرا|بكرة|وبكره|وبكرة/gi,
+          ` ${format(addDays(base, 1), "yyyy-MM-dd")} `
+        )
+
+        // Next week variations (formal and Gulf slang)
+        .replace(
+          /(?:الأسبوع|الاسبوع|والأسبوع|والاسبوع|واسبوع)\s*(?:المقبل|القادم|الجاي)/gi,
+          ` ${format(addDays(base, 7), "yyyy-MM-dd")} `
+        )
+
+        // Standalone "week" (implies next week in context)
+        .replace(/\bاسبوع\b/gi, ` ${format(addDays(base, 7), "yyyy-MM-dd")} `);
+
+      // Step 4: Convert textual time expressions
+      // Matches: "الساعة الثالثة مساءً" or "الساعة الحادية عشر صباحاً"
       t = t.replace(
         /(الساعة)\s*(الأولى|الاولى|الثانية|الثالثة|الرابعة|الخامسة|السادسة|السابعة|الثامنة|التاسعة|العاشرة|الحادية\s+عشر(?:ة)?|الحادية\s+عشرة|الثانية\s+عشر(?:ة)?|الثانية\s+عشرة)\s*(صباح|ص|مساء|بعد الظهر|عصر|ليل)?/gi,
         (_, __, word, period) => {
@@ -205,17 +290,20 @@ export function normalizeArabicText(raw, base = new Date()) {
         }
       );
 
-      // 5) numeric time hh:mm (with weird spacing/diacritics already stripped)
+      // Step 5: Convert numeric time expressions
+      // First pattern: "الساعة 3:30 مساءً"
       t = t.replace(
         /الساعة\s*(\d{1,2})[:٫:](\d{2})\s*(صباح|ص|مساء|بعد الظهر|عصر|ليل)?/gi,
         (_, h, m, p) => ` ${smartTime(+h, +m, p || t)} `
       );
+      // Second pattern: standalone "3:30 مساءً"
       t = t.replace(
         /(\d{1,2})[:٫:](\d{2})\s*(صباح|ص|مساء|بعد الظهر|عصر|ليل)?/gi,
         (_, h, m, p) => ` ${smartTime(+h, +m, p || t)} `
       );
 
-      // 6) lone weekday (only if no explicit date exists)
+      // Step 6: Handle standalone weekday references
+      // Only process if no explicit date already exists in the line
       if (!/\d{4}-\d{2}-\d{2}/.test(t)) {
         const m = t.match(
           /(?:^|\s)يوم\s+(السبت|الأحد|الاحد|الاثنين|الأثنين|الثلاثاء|الثلثاء|الأربعاء|الاربعاء|الخميس|الجمعة)/i
@@ -223,7 +311,7 @@ export function normalizeArabicText(raw, base = new Date()) {
         if (m) t = t.replace(m[0], ` ${nextWeekday(m[1], base)} `);
       }
 
-      // 7) cleanup spacing
+      // Step 7: Final cleanup - normalize spacing
       return t.replace(/\s+/g, " ").trim();
     })
     .join("\n");

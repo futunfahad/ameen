@@ -1,4 +1,4 @@
-import React from "react";
+/*import React from "react";
 import { View, StyleSheet, FlatList, Alert } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -87,3 +87,4 @@ const styles = StyleSheet.create({
 });
 
 export default AccountScreen;
+*/

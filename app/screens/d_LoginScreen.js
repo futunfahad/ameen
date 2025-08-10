@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+/*import React, { useState } from "react";
 import {
   StyleSheet,
   Image,
@@ -90,7 +90,7 @@ function LoginScreen({ setIsLoggedIn }) {
           textContentType="password"
         />
         <SubmitButton title="تسجيل دخول" disabled={loading} />
-        {/* احذفي للاختبار بس */}
+    
         <Button
           textStyle={{ color: "white" }}
           style={{ backgroundColor: "red", color: "white" }}
@@ -127,3 +127,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+*/
