@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import AppText from "./Text"; // تأكد أن Text.js موجود في components
+import AppText from "./Text";
 
 export default function CustomCard({
   title,
