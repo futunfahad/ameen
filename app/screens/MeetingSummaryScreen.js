@@ -547,6 +547,7 @@ export default function MeetingSummaryScreen() {
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("⏳ جار المعالجة...");
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   // Manual date input state
   const [showManualInput, setShowManualInput] = useState(false);
@@ -567,13 +568,28 @@ export default function MeetingSummaryScreen() {
           // Ensure model exists
           const modelPath = `${RNFS.DocumentDirectoryPath}/${MODEL_FILE}`;
           if (!(await RNFS.exists(modelPath))) {
-            setStatus("⬇️ تنزيل النموذج...");
-            console.log("📥 Downloading model...");
-            await RNFS.downloadFile({ fromUrl: MODEL_URL, toFile: modelPath })
-              .promise;
+            setStatus(" جاري تنزيل النموذج...");
+            setDownloadProgress(0); // Reset progress to 0
+
+            await RNFS.downloadFile({
+              fromUrl: MODEL_URL,
+              toFile: modelPath,
+              begin: () => {
+                console.log("✅ Started model download");
+              },
+              progress: (res) => {
+                const percent = Math.floor(
+                  (res.bytesWritten / res.contentLength) * 100
+                );
+                setDownloadProgress(percent);
+              },
+              progressDivider: 1,
+            }).promise;
           }
 
-          setStatus("⚙️ تحميل النموذج...");
+          // You can reset it to 100 just in case
+          setDownloadProgress(100);
+          setStatus("تحميل النموذج...");
           const ctx = await initializeLlamaForArabic(modelPath);
 
           // Normalize the transcript
@@ -582,7 +598,7 @@ export default function MeetingSummaryScreen() {
 
           // Step 1: Generate comprehensive summary
           if (!cancelled) {
-            setStatus("📝 جاري إنشاء الملخص المفصّل...");
+            setStatus(" جاري إنشاء الملخص ...");
             console.log("📝 Starting summary generation...");
 
             const summaryRes = await ctx.completion({
@@ -591,32 +607,19 @@ export default function MeetingSummaryScreen() {
                   role: "system",
                   content: `أنت مساعد ذكي متخصص في تلخيص الاجتماعات العربية بشكل شامل ومفيد.
 
-اكتب ملخص مفصل يتضمن:
+اكتب ملخص  يتضمن:
 
-**نوع الاجتماع**
-- حدد نوع الاجتماع 
 
 **النقاط الرئيسية**
 - لخص أهم المواضيع المناقشة
 - اذكر التفاصيل المهمة والأرقام والمعلومات الدقيقة
 
-**القرارات والاتفاقيات**
-- اذكر جميع القرارات المتخذة
-- الاتفاقات والموافقات
-
-**المهام والمسؤوليات**
-- من سيقوم بماذا
-- المسؤوليات المحددة
-
-**الخطوات التالية**
-- الإجراءات المقررة
-- المواعيد والالتزامات
 
 قواعد:
 - استخدم فقرات منفصلة مع عناوين واضحة
 - احتفظ بالأسماء والأرقام والتواريخ كما هي
-- 300-600 كلمة حسب طول النص
 - نص عادي بدون Markdown أو HTML
+- فقط  اذكر المعلومات الموجوده بالنص , لا تذكر اي معلومه ليست بالنص 
 - اللغة العربية فقط`,
                 },
                 {
@@ -641,7 +644,7 @@ export default function MeetingSummaryScreen() {
 
           // Step 2: Extract dates with optimized 2-call approach
           if (!cancelled) {
-            setStatus("📅 استخراج التواريخ والمهام (معالجة محسنة)...");
+            setStatus(" استخراج التواريخ والمهام ...");
             console.log("📅 Starting optimized date extraction...");
 
             try {
@@ -806,20 +809,22 @@ export default function MeetingSummaryScreen() {
     setShowManualInput(true);
   };
 
-  // Loading screen
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{status}</Text>
-      </View>
-    );
-  }
-
   const formattedTasks = formatDatesForDisplay(datesArr);
 
   return (
     <View style={styles.container}>
+      <Modal transparent visible={loading} animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingStatus}>{status}</Text>
+            {status.includes("تنزيل") && (
+              <Text style={{ fontSize: 14 }}> {downloadProgress}% </Text>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Audio Player */}
         {!!audioUri && <AudioPlayer uri={audioUri} />}
@@ -974,5 +979,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 4,
     textAlign: "right",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)", // dim the screen behind
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingCard: {
+    width: "85%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    // nice shadow/elevation
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  loadingStatus: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#333",
+    textAlign: "center",
   },
 });
