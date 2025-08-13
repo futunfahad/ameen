@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import * as ExpoCalendar from "expo-calendar";
@@ -24,7 +25,7 @@ export default function CalendarScreen() {
     meetings.forEach((meeting) => {
       let dates = meeting.importantDates;
 
-      // If dates is a string, parse it (shouldn't happen with our fixes but just in case)
+      // If dates is a string, parse it
       if (typeof dates === "string") {
         try {
           dates = JSON.parse(dates);
@@ -203,8 +204,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 15,
-    paddingTop: 40,
+    padding: 5,
   },
   scrollArea: {
     flex: 1,

@@ -5,9 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ScrollView,
   Modal,
   Dimensions,
+  SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -58,7 +59,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ScrollView>
         {meetings.length === 0 ? (
           <Text style={styles.emptyText}>
@@ -175,7 +176,7 @@ export default function HistoryScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

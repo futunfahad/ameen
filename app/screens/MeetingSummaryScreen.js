@@ -9,6 +9,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
+  SafeAreaView,
 } from "react-native";
 import {
   useRoute,
@@ -66,7 +67,7 @@ const validateDatesEnhanced = (dates) => {
     }
 
     // Validate time
-    let validTime = "09:00";
+    let validTime = "00:00";
     if (
       item.time &&
       typeof item.time === "string" &&
@@ -104,7 +105,7 @@ const findAllDatesInText = (text) => {
   return dates;
 };
 
-// Create context for manual date input
+// Create context for a date
 const createContextForDate = (text, date) => {
   const dateIndex = text.indexOf(date);
   if (dateIndex === -1) return "";
@@ -112,6 +113,21 @@ const createContextForDate = (text, date) => {
   const contextStart = Math.max(0, dateIndex - 150);
   const contextEnd = Math.min(text.length, dateIndex + 150);
   return text.substring(contextStart, contextEnd);
+};
+
+// If LLM misses a date, create a default task the user can edit
+const fillDefaultsForMissed = (missed) => {
+  if (!Array.isArray(missed)) return [];
+  return missed.map((m) => {
+    const date = typeof m === "string" ? m : m?.date;
+    return {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? date
+        : new Date().toISOString().split("T")[0],
+      time: "00:00",
+      title: "مهمة",
+    };
+  });
 };
 
 // Enhanced JSON parsing with multiple strategies
@@ -146,16 +162,18 @@ const safeParseArrayEnhanced = (str) => {
   let result = tryParse(str);
   if (result) return result;
 
-  // Strategy 2: Extract from code blocks
-  const codeBlockMatches = [/```(?:json)?([\s\S]*?)```/gi, /`([\s\S]*?)`/gi];
+  // Strategy 2: Extract from code blocks (supports ```json ... ``` and ` ... `)
+  const codeBlockPatterns = [/```(?:json)?([\s\S]*?)```/gi, /`([\s\S]*?)`/gi];
 
-  for (const regex of codeBlockMatches) {
-    const match = str.match(regex);
-    if (match && match[1]) {
-      result = tryParse(match[1]);
-      if (result) {
+  for (const pattern of codeBlockPatterns) {
+    let m;
+    while ((m = pattern.exec(str)) !== null) {
+      const inner = (m[1] || "").trim();
+      if (!inner) continue;
+      const parsed = tryParse(inner);
+      if (parsed) {
         console.log("✅ Success with code block extraction");
-        return result;
+        return parsed;
       }
     }
   }
@@ -236,7 +254,10 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
 المهمة:
 1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
 2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة) تشرح ماذا يحدث في هذا التاريخ
-3. إذا لم تجد وقت محدد، استخدم "09:00"
+3.لكل تاريخ، استخرج كل "مهمة" مذكورة (قد توجد عدة مهام في نفس التاريخ).
+4. إذا لم تجد وقت محدد، استخدم "00:00
+5. أنشئ عنصر JSON مستقل لكل مهمة حتى لو تكرر التاريخ.
+"
 
 التواريخ المتوقعة في النص: ${allFoundDates.join(", ")}
 
@@ -258,7 +279,7 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
         ],
         temperature: 0.05,
         n_predict: 600,
-        stop: ["\n\n", "```", "---"],
+        stop: ["\n\n", "```", "---", "<|im_end|>"],
         top_p: 0.8,
         top_k: 30,
       });
@@ -281,7 +302,9 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
 المهمة:
 1. ابحث عن كل تاريخ بصيغة YYYY-MM-DD
 2. لكل تاريخ، اكتب مهمة وصفية قصيرة (15-40 كلمة)
-3. إذا لم تجد وقت محدد، استخدم "09:00"
+3. إذا لم تجد وقت محدد، استخدم "00:00"
+4. لكل تاريخ، استخرج جميع المهام المذكورة (قد توجد عدة مهام في نفس التاريخ).
+5. أنشئ عنصر JSON لكل مهمة حتى لو تكرر التاريخ.
 
 التواريخ في هذا الجزء: ${chunkDates.join(", ")}
 
@@ -301,13 +324,13 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
             ],
             temperature: 0.05,
             n_predict: 400,
-            stop: ["\n\n", "```"],
+            stop: ["\n\n", "```", "<|im_end|>"],
             top_p: 0.8,
             top_k: 30,
           });
 
-          const chunkDates = safeParseArrayEnhanced(chunkRes.text);
-          allExtractedDates.push(...chunkDates);
+          const chunkDatesParse = safeParseArrayEnhanced(chunkRes.text);
+          allExtractedDates.push(...chunkDatesParse);
         }
       }
     }
@@ -366,7 +389,7 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
           ],
           temperature: 0.05,
           n_predict: 400,
-          stop: ["\n\n", "```"],
+          stop: ["\n\n", "```", "<|im_end|>"],
           top_p: 0.8,
           top_k: 30,
         });
@@ -383,6 +406,7 @@ const extractDatesOptimized = async (ctx, normalizedText) => {
         console.log(
           `✅ CALL 2 COMPLETE: Extracted ${secondCallDates.length} more dates`
         );
+
         console.log(`🎯 Final missed dates: ${finalMissedDates.length}`);
 
         return {
@@ -445,95 +469,6 @@ const initializeLlamaForArabic = async (modelPath) => {
 };
 
 // -----------------------------
-// Manual Date Input Component
-// -----------------------------
-const ManualDateInputModal = ({ visible, missedDates, onSubmit, onCancel }) => {
-  const [dateInputs, setDateInputs] = useState({});
-
-  React.useEffect(() => {
-    if (visible && missedDates.length > 0) {
-      const initialInputs = {};
-      missedDates.forEach((item) => {
-        initialInputs[item.date] = "";
-      });
-      setDateInputs(initialInputs);
-    }
-  }, [visible, missedDates]);
-
-  const handleSubmit = () => {
-    const results = missedDates.map((item) => ({
-      date: item.date,
-      time: "09:00",
-      title: dateInputs[item.date] || `مهمة في ${item.date}`,
-    }));
-    onSubmit(results);
-  };
-
-  const updateInput = (date, value) => {
-    setDateInputs((prev) => ({
-      ...prev,
-      [date]: value,
-    }));
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>إدخال المهام المتبقية</Text>
-          <Text style={styles.modalSubtitle}>
-            يرجى إدخال وصف لكل مهمة من المهام التالية:
-          </Text>
-        </View>
-
-        <ScrollView style={styles.modalContent}>
-          {missedDates.map((item, index) => (
-            <View key={item.date} style={styles.dateInputContainer}>
-              <Text style={styles.dateLabel}>📅 {item.date}</Text>
-
-              {item.context && (
-                <Text style={styles.contextText} numberOfLines={3}>
-                  السياق: {item.context}
-                </Text>
-              )}
-
-              <TextInput
-                style={styles.taskInput}
-                placeholder="أدخل وصف المهمة..."
-                value={dateInputs[item.date] || ""}
-                onChangeText={(text) => updateInput(item.date, text)}
-                multiline
-                textAlign="right"
-              />
-            </View>
-          ))}
-        </ScrollView>
-
-        <View style={styles.modalButtons}>
-          <TouchableOpacity
-            style={[styles.modalButton, styles.cancelButton]}
-            onPress={onCancel}
-          >
-            <Text style={styles.cancelButtonText}>تخطي</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.modalButton, styles.submitButton]}
-            onPress={handleSubmit}
-          >
-            <Text style={styles.submitButtonText}>حفظ المهام</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// -----------------------------
 // Main Component
 // -----------------------------
 export default function MeetingSummaryScreen() {
@@ -548,10 +483,6 @@ export default function MeetingSummaryScreen() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("⏳ جار المعالجة...");
   const [downloadProgress, setDownloadProgress] = useState(0);
-
-  // Manual date input state
-  const [showManualInput, setShowManualInput] = useState(false);
-  const [missedDates, setMissedDates] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -607,7 +538,7 @@ export default function MeetingSummaryScreen() {
                   role: "system",
                   content: `أنت مساعد ذكي متخصص في تلخيص الاجتماعات العربية بشكل شامل ومفيد.
 
-اكتب ملخص  يتضمن:
+اكتب ملخص مفصل يتضمن:
 
 
 **النقاط الرئيسية**
@@ -651,33 +582,31 @@ export default function MeetingSummaryScreen() {
               const { extractedDates, missedDates: missed } =
                 await extractDatesOptimized(ctx, normalized);
 
-              setDatesArr(extractedDates);
-
-              if (missed.length > 0) {
-                setMissedDates(missed);
-                setStatus(
-                  `✅ تم استخراج ${extractedDates.length} مهام | ${missed.length} تحتاج إدخال يدوي`
-                );
-              } else {
-                setStatus(`✅ تم استخراج ${extractedDates.length} مهام مجدولة`);
+              // Auto-fill missed dates with default tasks titled "مهمة"
+              let merged = extractedDates || [];
+              if (Array.isArray(missed) && missed.length > 0) {
+                const defaults = fillDefaultsForMissed(missed);
+                merged = [...merged, ...defaults];
               }
 
+              // Validate and save to state (JSON is datesArr)
+              const cleaned = validateDatesEnhanced(merged);
+              setDatesArr(cleaned);
+
+              setStatus(`✅ تم استخراج ${cleaned.length} مهام مجدولة`);
               console.log(
-                `✅ Extracted ${extractedDates.length} dates automatically`
+                `✅ Extracted ${cleaned.length} total tasks (after defaults)`
               );
-              console.log(`⚠️ ${missed.length} dates need manual input`);
             } catch (dateError) {
               console.error("❌ Date extraction failed:", dateError);
               setStatus("❌ فشل في استخراج التواريخ");
 
-              // Final fallback - manual input for all dates
+              // Fallback: build default tasks for all dates found
               const allDates = findAllDatesInText(normalized);
-              setMissedDates(
-                allDates.map((date) => ({
-                  date,
-                  context: createContextForDate(normalized, date),
-                }))
-              );
+              const defaults = fillDefaultsForMissed(allDates);
+              const cleaned = validateDatesEnhanced(defaults);
+              setDatesArr(cleaned);
+              setStatus(`⚠️ تم إنشاء ${cleaned.length} مهام افتراضية`);
             }
           }
 
@@ -708,20 +637,13 @@ export default function MeetingSummaryScreen() {
     }, [transcribedText])
   );
 
-  // Handle manual date input submission
-  const handleManualDateSubmit = (manualDates) => {
-    const validatedManualDates = validateDatesEnhanced(manualDates);
-    setDatesArr((prev) => [...prev, ...validatedManualDates]);
-    setMissedDates([]);
-    setShowManualInput(false);
-
-    console.log(`✅ Added ${validatedManualDates.length} manual dates`);
-    Alert.alert("✅", `تم إضافة ${validatedManualDates.length} مهام يدوياً`);
-  };
-
-  const handleManualDateCancel = () => {
-    setMissedDates([]);
-    setShowManualInput(false);
+  // --- Tasks editing: update JSON live ---
+  const handleTaskTitleChange = (index, newTitle) => {
+    setDatesArr((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], title: (newTitle || "").trimStart() };
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -729,23 +651,6 @@ export default function MeetingSummaryScreen() {
       return Alert.alert("خطأ", "يرجى إدخال موضوع الاجتماع");
     }
 
-    // Check if there are missed dates
-    if (missedDates.length > 0) {
-      Alert.alert(
-        "مهام غير مكتملة",
-        `يوجد ${missedDates.length} مهام تحتاج إدخال يدوي. هل تريد إضافتها الآن أم حفظ الاجتماع بالمهام الحالية؟`,
-        [
-          { text: "حفظ كما هو", onPress: () => saveNow() },
-          { text: "إدخال المهام", onPress: () => setShowManualInput(true) },
-        ]
-      );
-      return;
-    }
-
-    saveNow();
-  };
-
-  const saveNow = async () => {
     try {
       const cleanDates = validateDatesEnhanced(datesArr);
       await addMeeting(
@@ -768,12 +673,33 @@ export default function MeetingSummaryScreen() {
       return "لا توجد مهام مجدولة";
     }
 
-    return dates
-      .map((item, index) => {
-        const timeText = item.time !== "00:00" ? ` | ${item.time}` : "";
-        return `${index + 1}. ${item.date}${timeText}\n   ${item.title}`;
-      })
-      .join("\n\n");
+    // Sort by date, then by time
+    const sorted = [...dates].sort((a, b) => {
+      const d = a.date.localeCompare(b.date);
+      if (d !== 0) return d;
+      return (a.time || "00:00").localeCompare(b.time || "00:00");
+    });
+
+    // Group by date
+    const byDate = sorted.reduce((acc, item) => {
+      acc[item.date] = acc[item.date] || [];
+      acc[item.date].push(item);
+      return acc;
+    }, {});
+
+    // Build readable text
+    const lines = [];
+    Object.keys(byDate).forEach((day, idx) => {
+      lines.push(`${idx + 1}. ${day}`);
+      byDate[day].forEach((task) => {
+        const timeText =
+          task.time && task.time !== "00:00" ? ` | ${task.time}` : "";
+        lines.push(`   - ${task.title}${timeText}`);
+      });
+      lines.push(""); // blank line between days
+    });
+
+    return lines.join("\n").trim();
   };
 
   const handleCopySummary = async () => {
@@ -805,81 +731,141 @@ export default function MeetingSummaryScreen() {
     }
   };
 
-  const handleAddMissedTasks = () => {
-    setShowManualInput(true);
-  };
-
-  const formattedTasks = formatDatesForDisplay(datesArr);
-
   return (
-    <View style={styles.container}>
-      <Modal transparent visible={loading} animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingStatus}>{status}</Text>
-            {status.includes("تنزيل") && (
-              <Text style={{ fontSize: 14 }}> {downloadProgress}% </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Modal transparent visible={loading} animationType="fade">
+          <View style={styles.overlay}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingStatus}>{status}</Text>
+              {status.includes("تنزيل") && (
+                <Text style={{ fontSize: 14 }}> {downloadProgress}% </Text>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {/* Audio Player */}
+          {!!audioUri && <AudioPlayer uri={audioUri} />}
+
+          {/* Meeting Topic Input */}
+          <Text style={styles.sectionHeader}>موضوع الاجتماع</Text>
+          <TextInput
+            style={styles.topicInput}
+            placeholder="أدخل موضوع الاجتماع"
+            value={topic}
+            onChangeText={setTopic}
+            multiline={false}
+          />
+
+          {/* Summary Card */}
+          <CustomCard
+            title="ملخص الاجتماع"
+            value={summary}
+            onChangeText={setSummary}
+            height={250}
+            items={[
+              {
+                icon: "content-copy",
+                color: colors.secondary,
+                onPress: handleCopySummary,
+              },
+              {
+                icon: "share-variant",
+                color: colors.secondary,
+                onPress: handleShareSummary,
+              },
+            ]}
+          />
+
+          {/* Tasks Editor (inline, editable) */}
+          <View style={{ marginTop: 20 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={styles.sectionHeader}>
+                {`المهام المجدولة (${datesArr.length})`}
+              </Text>
+              <TouchableOpacity
+                onPress={handleCopyTasks}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  backgroundColor: colors.secondary,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 14 }}>نسخ المهام</Text>
+              </TouchableOpacity>
+            </View>
+
+            {datesArr.length === 0 ? (
+              <Text style={{ textAlign: "right", color: "#666" }}>
+                لا توجد مهام مجدولة
+              </Text>
+            ) : (
+              datesArr.map((item, idx) => (
+                <View
+                  key={`${item.date}-${idx}`}
+                  style={{
+                    backgroundColor: "#fff",
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 10,
+                    borderWidth: 1,
+                    borderColor: "#eee",
+                  }}
+                >
+                  <Text
+                    style={{
+                      textAlign: "right",
+                      color: "#333",
+                      marginBottom: 6,
+                    }}
+                  >
+                    📅 {item.date}{" "}
+                    {item.time && item.time !== "00:00" ? `| ${item.time}` : ""}
+                  </Text>
+
+                  {/* Editable title updates JSON in datesArr */}
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#ddd",
+                      borderRadius: 8,
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      backgroundColor: "#fff",
+                      fontSize: 16,
+                      textAlign: "right",
+                    }}
+                    placeholder="مهمة"
+                    value={item.title}
+                    onChangeText={(t) => handleTaskTitleChange(idx, t)}
+                    multiline
+                  />
+                </View>
+              ))
             )}
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Audio Player */}
-        {!!audioUri && <AudioPlayer uri={audioUri} />}
-
-        {/* Meeting Topic Input */}
-        <Text style={styles.sectionHeader}>موضوع الاجتماع</Text>
-        <TextInput
-          style={styles.topicInput}
-          placeholder="أدخل موضوع الاجتماع"
-          value={topic}
-          onChangeText={setTopic}
-          multiline={false}
-        />
-
-        {/* Summary Card */}
-        <CustomCard
-          title="ملخص الاجتماع"
-          value={summary}
-          onChangeText={setSummary}
-          height={250}
-          items={[
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: handleCopySummary,
-            },
-            {
-              icon: "share-variant",
-              color: colors.secondary,
-              onPress: handleShareSummary,
-            },
-          ]}
-        />
-
-        {/* Tasks Card */}
-        <CustomCard
-          title={`المهام المجدولة (${datesArr.length})`}
-          value={formattedTasks}
-          editable={false}
-          height={200}
-          items={[
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: handleCopyTasks,
-            },
-          ]}
-        />
+        {/* Save Button */}
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>حفظ الاجتماع</Text>
+        </TouchableOpacity>
       </ScrollView>
-
-      {/* Save Button */}
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>حفظ الاجتماع</Text>
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -911,7 +897,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: "#cccccc",
     fontSize: 14,
-    textAlign: "center",
+    textAlign: "right",
   },
   sectionHeader: {
     fontSize: 18,

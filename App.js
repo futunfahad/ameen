@@ -86,6 +86,7 @@ export default function App() {
             drawerPosition: "right",
             drawerStyle: { width: 260 },
             headerStyle: { backgroundColor: colors.white },
+            headerTitleStyle: { fontSize: 23, paddingBottom: 5 },
             headerTintColor: colors.secondary,
             headerTitleAlign: "center",
             headerLeft: () => <CustomHeaderLeft navigation={navigation} />,

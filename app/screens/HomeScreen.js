@@ -7,6 +7,8 @@ import {
   Animated,
   PermissionsAndroid,
   Platform,
+  ScrollView,
+  SafeAreaView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -116,64 +118,84 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.micButton} onPress={handlePress}>
-        <MaterialCommunityIcons
-          name={recording ? "microphone" : "microphone-outline"}
-          size={150}
-          color={colors.primary}
-        />
-      </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={{ width: "100%" }}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="always"
+      >
+        <TouchableOpacity style={styles.micButton} onPress={handlePress}>
+          <MaterialCommunityIcons
+            name={recording ? "microphone" : "microphone-outline"}
+            size={150}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
 
-      {recording && (
-        <View style={styles.waveform}>
-          {barHeights.map((bar, i) => (
-            <Animated.View key={i} style={[styles.bar, { height: bar }]} />
-          ))}
-        </View>
-      )}
-
-      {recordingUri && !recording && (
-        <>
-          {/* نفس الأيقونة التي كانت عندك */}
-          <TouchableOpacity
-            onPress={goToTranscription}
-            style={{ marginTop: 30 }}
-          >
-            <MaterialCommunityIcons
-              name="file-document-outline"
-              size={40}
-              color={colors.secondary}
-            />
-          </TouchableOpacity>
-
-          {/* الأزرار التي سألت عنها: عرض النص + حذف التسجيل */}
-          <View style={{ width: "80%", marginTop: 16 }}>
-            <SecondaryButton
-              text="عرض النص المستخرج"
-              color={colors.secondary}
-              onPress={goToTranscription}
-            />
-            <SecondaryButton
-              text="حذف التسجيل"
-              color={colors.secondary}
-              onPress={handleDelete}
-            />
+        {recording && (
+          <View style={styles.waveform}>
+            {barHeights.map((bar, i) => (
+              <Animated.View key={i} style={[styles.bar, { height: bar }]} />
+            ))}
           </View>
-        </>
-      )}
-    </View>
+        )}
+
+        {recordingUri && !recording && (
+          <>
+            {/* Centered file icon */}
+            <TouchableOpacity
+              onPress={goToTranscription}
+              style={styles.fileIconBtn}
+            >
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={40}
+                color={colors.secondary}
+              />
+            </TouchableOpacity>
+
+            {/* Consistent full-width buttons with fixed height */}
+            <View style={styles.buttonContainer}>
+              <View style={styles.buttonHolder}>
+                <SecondaryButton
+                  text="عرض النص المستخرج"
+                  color={colors.secondary}
+                  onPress={goToTranscription}
+                />
+              </View>
+              <View style={styles.buttonHolder}>
+                <SecondaryButton
+                  text="حذف التسجيل"
+                  color={colors.secondary}
+                  onPress={handleDelete}
+                />
+              </View>
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "#f2f2f2",
   },
+
+  // Keep everything centered in the scroll area
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 48, // extra bottom space for short screens
+  },
+
+  // Always perfectly centered mic
   micButton: {
+    alignSelf: "center",
     backgroundColor: colors.white,
     width: 250,
     height: 250,
@@ -185,6 +207,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     marginBottom: 15,
   },
+
   waveform: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -197,5 +220,29 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
     backgroundColor: colors.primary,
     borderRadius: 3,
+  },
+
+  // Center the file icon
+  fileIconBtn: {
+    alignSelf: "center",
+    marginTop: 30,
+  },
+
+  // Stable button area
+  buttonContainer: {
+    alignSelf: "center",
+    width: "90%",
+    maxWidth: 420,
+    marginTop: 16,
+    paddingBottom: 30,
+    gap: 12,
+  },
+
+  // Fix button shape/height regardless of content
+  buttonHolder: {
+    height: 80,
+    borderRadius: 12,
+    overflow: "hidden",
+    justifyContent: "center",
   },
 });

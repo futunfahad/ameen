@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "ameen2",
-    "slug": "ameen2",
+    "name": "ameen",
+    "slug": "ameen",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./app/assets/icon.png",
+    "icon": "./app/assets/logo_App.png",
     "userInterfaceStyle": "light",
     "jsEngine": "hermes",
     "splash": {
-      "image": "./app/assets/splash-icon.png",
+      "image": "./app/assets/logo_App.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,13 +19,13 @@
     "android": {
       "enableDangerousExperimentalLeanBuilds": false,
       "adaptiveIcon": {
-        "foregroundImage": "./app/assets/adaptive-icon.png",
+        "foregroundImage": "./app/assets/logo_App.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.n"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo_App.png"
     },
     "plugins": ["expo-sqlite", "expo-secure-store"],
     "extra": {
@@ -33,6 +33,6 @@
         "projectId": "528b5014-f12c-422d-84d6-f1a1cb3309d3"
       }
     },
-    "owner": "futun"
+    "owner": "futun and muzn"
   }
 }

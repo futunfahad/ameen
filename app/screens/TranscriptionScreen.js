@@ -8,6 +8,8 @@ import {
   Modal,
   Text,
   Platform,
+  ScrollView,
+  SafeAreaView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
@@ -27,6 +29,7 @@ import SecondaryButton from "../components/SecondaryButton";
 import CustomCard from "../components/CustomCard";
 import { ensureWhisperModel } from "../services/whisperModel";
 import { initWhisper } from "whisper.rn";
+//////////////
 
 /**
  * TranscriptionScreen Component
@@ -620,102 +623,107 @@ export default function TranscriptionScreen() {
 
   // === RENDER UI ===
   return (
-    <View style={styles.container}>
-      {/* Loading Modal with Progress */}
-      <Modal transparent visible={loading} animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.statusText}>{downloadStatus}</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Loading Modal with Progress */}
+        <Modal transparent visible={loading} animationType="fade">
+          <View style={styles.overlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.statusText}>{downloadStatus}</Text>
 
-            {/* Show progress bar during download */}
-            {isDownloading && (
-              <View style={styles.progressContainer}>
-                <CustomProgressBar progress={downloadProgress} />
-                <Text style={styles.progressText}>
-                  {Math.round(downloadProgress)}%
-                </Text>
-              </View>
-            )}
+              {/* Show progress bar during download */}
+              {isDownloading && (
+                <View style={styles.progressContainer}>
+                  <CustomProgressBar progress={downloadProgress} />
+                  <Text style={styles.progressText}>
+                    {Math.round(downloadProgress)}%
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Screen Title */}
+        <AppText style={styles.header}>النص المستخرج من اجتماعك</AppText>
+
+        {/* Audio Player Controls */}
+        <View style={styles.audioControls}>
+          {/* Play/Pause Button */}
+          <TouchableOpacity onPress={handlePlayPause} disabled={!soundObj}>
+            <MaterialCommunityIcons
+              name={isPlaying ? "pause-circle-outline" : "play-circle-outline"}
+              size={50}
+              color={soundObj ? colors.secondary : "#ccc"}
+            />
+          </TouchableOpacity>
+
+          {/* Audio Scrubber and Time Display */}
+          <View style={styles.sliderWrapper}>
+            <Slider
+              style={{ flex: 1 }}
+              value={positionMillis}
+              minimumValue={0}
+              maximumValue={durationMillis || 1}
+              onSlidingComplete={handleSeek}
+              minimumTrackTintColor={colors.secondary}
+              maximumTrackTintColor="#ccc"
+              thumbTintColor={colors.secondary}
+              disabled={!soundObj}
+            />
+            <View style={styles.timeRow}>
+              <AppText style={styles.timeText}>
+                {formatTime(positionMillis)}
+              </AppText>
+              <AppText style={styles.timeText}>
+                {formatTime(durationMillis)}
+              </AppText>
+            </View>
           </View>
         </View>
-      </Modal>
 
-      {/* Screen Title */}
-      <AppText style={styles.header}>النص المستخرج من اجتماعك</AppText>
+        {/* Transcribed Text Card with Actions */}
+        <CustomCard
+          title="النص المفرغ"
+          value={transcribedText}
+          onChangeText={setTranscribedText}
+          placeholder="النص المفرغ سيظهر هنا..."
+          height={200}
+          items={[
+            {
+              icon: "content-copy",
+              color: colors.secondary,
+              onPress: handleCopyText,
+            },
+            {
+              icon: "share-variant",
+              color: colors.secondary,
+              onPress: handleShareText,
+            },
+          ]}
+        />
 
-      {/* Audio Player Controls */}
-      <View style={styles.audioControls}>
-        {/* Play/Pause Button */}
-        <TouchableOpacity onPress={handlePlayPause} disabled={!soundObj}>
-          <MaterialCommunityIcons
-            name={isPlaying ? "pause-circle-outline" : "play-circle-outline"}
-            size={50}
-            color={soundObj ? colors.secondary : "#ccc"}
+        {/* Action Buttons */}
+        <View style={styles.bottomButtons}>
+          <SecondaryButton
+            text="تفريغ النص"
+            color={colors.secondary}
+            onPress={handleTranscribePress}
+            disabled={loading || !recordingUri}
           />
-        </TouchableOpacity>
-
-        {/* Audio Scrubber and Time Display */}
-        <View style={styles.sliderWrapper}>
-          <Slider
-            style={{ flex: 1 }}
-            value={positionMillis}
-            minimumValue={0}
-            maximumValue={durationMillis || 1}
-            onSlidingComplete={handleSeek}
-            minimumTrackTintColor={colors.secondary}
-            maximumTrackTintColor="#ccc"
-            thumbTintColor={colors.secondary}
-            disabled={!soundObj}
+          <SecondaryButton
+            text="الذهاب إلى الملخص"
+            color={colors.secondary}
+            onPress={handleNavigateToSummary}
+            disabled={!transcribedText?.trim()}
           />
-          <View style={styles.timeRow}>
-            <AppText style={styles.timeText}>
-              {formatTime(positionMillis)}
-            </AppText>
-            <AppText style={styles.timeText}>
-              {formatTime(durationMillis)}
-            </AppText>
-          </View>
         </View>
-      </View>
-
-      {/* Transcribed Text Card with Actions */}
-      <CustomCard
-        title="النص المفرغ"
-        value={transcribedText}
-        onChangeText={setTranscribedText}
-        placeholder="النص المفرغ سيظهر هنا..."
-        height={200}
-        items={[
-          {
-            icon: "content-copy",
-            color: colors.secondary,
-            onPress: handleCopyText,
-          },
-          {
-            icon: "share-variant",
-            color: colors.secondary,
-            onPress: handleShareText,
-          },
-        ]}
-      />
-
-      {/* Action Buttons */}
-      <View style={styles.bottomButtons}>
-        <SecondaryButton
-          text="تفريغ النص"
-          color={colors.secondary}
-          onPress={handleTranscribePress}
-          disabled={loading || !recordingUri}
-        />
-        <SecondaryButton
-          text="الذهاب إلى الملخص"
-          color={colors.secondary}
-          onPress={handleNavigateToSummary}
-          disabled={!transcribedText?.trim()}
-        />
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

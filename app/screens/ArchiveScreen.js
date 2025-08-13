@@ -8,6 +8,7 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
+  SafeAreaView,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Sharing from "expo-sharing";
@@ -64,141 +65,146 @@ export default function ArchiveScreen() {
   const formattedDates = formatDatesForDisplay(item.importantDates);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.topicText}>
-          <Text style={styles.topicLabel}>موضوع الاجتماع: </Text>
-          {item.topic?.trim() ? item.topic : "—"}
-        </Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.topicText}>
+            <Text style={styles.topicLabel}>موضوع الاجتماع: </Text>
+            {item.topic?.trim() ? item.topic : "—"}
+          </Text>
 
-        {item.audioUri ? (
-          <AudioPlayer key={playerKey} uri={item.audioUri} />
-        ) : null}
+          {item.audioUri ? (
+            <AudioPlayer key={playerKey} uri={item.audioUri} />
+          ) : null}
 
-        <CustomCard
-          title="النص الأصلي"
-          value={item.text}
-          editable={false}
-          height={200}
-          items={[
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: () => {
-                Clipboard.setString(item.text);
-                Alert.alert("📋", "تم نسخ النص الأصلي");
+          <CustomCard
+            title="النص الأصلي"
+            value={item.text}
+            editable={false}
+            height={200}
+            items={[
+              {
+                icon: "content-copy",
+                color: colors.secondary,
+                onPress: () => {
+                  Clipboard.setString(item.text);
+                  Alert.alert("📋", "تم نسخ النص الأصلي");
+                },
               },
-            },
-            {
-              icon: "share-variant",
-              color: colors.secondary,
-              onPress: async () => {
-                const path = FileSystem.cacheDirectory + "original.txt";
-                await FileSystem.writeAsStringAsync(path, item.text);
-                Sharing.shareAsync(path);
+              {
+                icon: "share-variant",
+                color: colors.secondary,
+                onPress: async () => {
+                  const path = FileSystem.cacheDirectory + "original.txt";
+                  await FileSystem.writeAsStringAsync(path, item.text);
+                  Sharing.shareAsync(path);
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
 
-        <CustomCard
-          title="ملخص الاجتماع"
-          value={item.summary}
-          editable={false}
-          height={200}
-          items={[
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: () => {
-                Clipboard.setString(item.summary);
-                Alert.alert("📋", "تم نسخ الملخص");
+          <CustomCard
+            title="ملخص الاجتماع"
+            value={item.summary}
+            editable={false}
+            height={200}
+            items={[
+              {
+                icon: "content-copy",
+                color: colors.secondary,
+                onPress: () => {
+                  Clipboard.setString(item.summary);
+                  Alert.alert("📋", "تم نسخ الملخص");
+                },
               },
-            },
-            {
-              icon: "share-variant",
-              color: colors.secondary,
-              onPress: async () => {
-                const path = FileSystem.cacheDirectory + "summary.txt";
-                await FileSystem.writeAsStringAsync(path, item.summary);
-                Sharing.shareAsync(path);
+              {
+                icon: "share-variant",
+                color: colors.secondary,
+                onPress: async () => {
+                  const path = FileSystem.cacheDirectory + "summary.txt";
+                  await FileSystem.writeAsStringAsync(path, item.summary);
+                  Sharing.shareAsync(path);
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
 
-        <CustomCard
-          title="تواريخ مهمة"
-          value={formattedDates}
-          editable={false}
-          height={150}
-          items={[
-            {
-              icon: "calendar",
-              color: colors.primary,
-              onPress: showDatesModal,
-            },
-            {
-              icon: "content-copy",
-              color: colors.secondary,
-              onPress: () => {
-                Clipboard.setString(formattedDates);
-                Alert.alert("📋", "تم نسخ التواريخ");
+          <CustomCard
+            title="تواريخ مهمة"
+            value={formattedDates}
+            editable={false}
+            height={150}
+            items={[
+              {
+                icon: "calendar",
+                color: colors.primary,
+                onPress: showDatesModal,
               },
-            },
-          ]}
-        />
-      </ScrollView>
+              {
+                icon: "content-copy",
+                color: colors.secondary,
+                onPress: () => {
+                  Clipboard.setString(formattedDates);
+                  Alert.alert("📋", "تم نسخ التواريخ");
+                },
+              },
+            ]}
+          />
+        </ScrollView>
 
-      {/* Scrollable Dates Modal */}
-      <Modal
-        visible={datesModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setDatesModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>التواريخ المهمة</Text>
+        {/* Scrollable Dates Modal */}
+        <Modal
+          visible={datesModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setDatesModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>التواريخ المهمة</Text>
 
-            <ScrollView style={styles.datesScrollView}>
-              {item.importantDates?.length > 0 ? (
-                item.importantDates.map((date, index) => (
-                  <View key={index} style={styles.dateItem}>
-                    <Text style={styles.dateText}>
-                      <Text style={styles.dateLabel}>التاريخ: </Text>
-                      {date.date}
-                    </Text>
-                    {date.time !== "00:00" && (
+              <ScrollView style={styles.datesScrollView}>
+                {item.importantDates?.length > 0 ? (
+                  item.importantDates.map((date, index) => (
+                    <View key={index} style={styles.dateItem}>
                       <Text style={styles.dateText}>
-                        <Text style={styles.dateLabel}>الوقت: </Text>
-                        {date.time}
+                        <Text style={styles.dateLabel}>التاريخ: </Text>
+                        {date.date}
                       </Text>
-                    )}
-                    <Text style={styles.dateText}>
-                      <Text style={styles.dateLabel}>الموضوع: </Text>
-                      {date.title}
-                    </Text>
-                    {index < item.importantDates.length - 1 && (
-                      <View style={styles.separator} />
-                    )}
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.noDatesText}>لا توجد تواريخ</Text>
-              )}
-            </ScrollView>
+                      {date.time !== "00:00" && (
+                        <Text style={styles.dateText}>
+                          <Text style={styles.dateLabel}>الوقت: </Text>
+                          {date.time}
+                        </Text>
+                      )}
+                      <Text style={styles.dateText}>
+                        <Text style={styles.dateLabel}>الموضوع: </Text>
+                        {date.title}
+                      </Text>
+                      {index < item.importantDates.length - 1 && (
+                        <View style={styles.separator} />
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noDatesText}>لا توجد تواريخ</Text>
+                )}
+              </ScrollView>
 
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setDatesModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>إغلاق</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setDatesModalVisible(false)}
+              >
+                <Text style={styles.closeButtonText}>إغلاق</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
