@@ -91,18 +91,18 @@ npx expo start --dev-client
 
 Compiled signed APKs (≤250 MB) are published under the **GitHub Releases** tab.
 
-يتم نشر ملفات APK الموقعة (≤250 ميغابايت) في قسم **Releases** على GitHub.
+يتم نشر ملفات الAPK الموقعة (≤250 ميغابايت) في قسم **Releases** .
 
 ### 📥 How to Install | كيفية التثبيت
 
 1. Go to the **Releases** tab on your GitHub repository  
-   اذهب إلى تبويب **Releases** في مستودع GitHub
+   اذهب إلى قسم **Releases**   
 
 2. Download the file named `app-release.apk`  
    قم بتنزيل الملف باسم `app-release.apk`
 
 3. Transfer it to your Android phone and install manually  
-   انقله إلى هاتفك وقم بتثبيته يدويًا باستخدام ADB أو مدير الملفات
+   انقله إلى هاتفك وقم بتثبيته يدويًا 
 
 ---
 
@@ -115,4 +115,5 @@ This project is released under the **MIT License**.
 
 Made with ❤️ for Arabic-speaking teams.  
 **صُنع بحب لخدمة الناطقين بالعربية.**
+
 
