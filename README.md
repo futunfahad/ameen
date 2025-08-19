@@ -46,7 +46,7 @@ Ameen Al-Majlis tackles the pain of manual minute-taking in Arabic meetings. Bui
 📱 React Native (Expo)
 ├── 🎙️ Audio Capture
 ├── 🤖 Whisper.rn → Arabic transcript
-├── 🐪 llama.rn + Qwen2.5-3B →
+├── 🦙 llama.rn + Qwen2.5-3B →
 │   • Summarisation
 │   • Decision & date extraction
 ├── 🗄️ SQLite local DB
@@ -87,14 +87,22 @@ npx expo start --dev-client
 > 💡 **Note:** First launch will copy model files (~1.6 GB) into the app sandbox.
 
 ---
-
 ## Releases / APK | الإصدارات / ملفات APK
 
 Compiled signed APKs (≤250 MB) are published under the **GitHub Releases** tab.
 
-1. Go to **Releases** on the GitHub repo  
-2. Download `app-release.apk` to your Android device  
-3. Install manually via ADB or file manager
+يتم نشر ملفات APK الموقعة (≤250 ميغابايت) في قسم **Releases** على GitHub.
+
+### 📥 How to Install | كيفية التثبيت
+
+1. Go to the **Releases** tab on your GitHub repository  
+   اذهب إلى تبويب **Releases** في مستودع GitHub
+
+2. Download the file named `app-release.apk`  
+   قم بتنزيل الملف باسم `app-release.apk`
+
+3. Transfer it to your Android phone and install manually  
+   انقله إلى هاتفك وقم بتثبيته يدويًا باستخدام ADB أو مدير الملفات
 
 ---
 
@@ -107,3 +115,4 @@ This project is released under the **MIT License**.
 
 Made with ❤️ for Arabic-speaking teams.  
 **صُنع بحب لخدمة الناطقين بالعربية.**
+
