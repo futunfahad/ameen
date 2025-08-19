@@ -301,15 +301,6 @@ export default function TranscriptionScreen() {
         throw new Error("WHISPER_NOT_AVAILABLE");
       }
 
-      // Check network connectivity first
-      setDownloadStatus("جاري فحص الاتصال بالإنترنت...");
-      const isConnected = await testNetworkConnection();
-
-      if (!isConnected) {
-        throw new Error(
-          "لا يوجد اتصال بالإنترنت. يرجى التحقق من الاتصال والمحاولة مرة أخرى"
-        );
-      }
 
       // Clean up any existing Whisper instance
       if (whisperRef.current) {
