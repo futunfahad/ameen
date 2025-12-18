@@ -104,12 +104,13 @@ Compiled signed APKs (≤250 MB) are published under the **GitHub Releases** tab
 3. Transfer it to your Android phone and install manually  
    انقله إلى هاتفك وقم بتثبيته يدويًا 
 
-**هذا المشروع مرخَّص برخصة MIT مفتوحة المصدر.**
+
 
 ---
 
 Made with ❤️ for Arabic-speaking teams.  
 **صُنع بحب لخدمة الناطقين بالعربية.**
+
 
 
 
