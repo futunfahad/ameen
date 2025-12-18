@@ -12,7 +12,7 @@
 4. [Tech Stack](#tech-stack--التقنيات)  
 5. [Installation & Run](#installation--run--التثبيت-والتشغيل)  
 6. [Releases / APK](#releases--apk--الإصدارات--apk)  
-7. [License](#license--الترخيص)  
+ 
 
 ---
 
@@ -104,16 +104,12 @@ Compiled signed APKs (≤250 MB) are published under the **GitHub Releases** tab
 3. Transfer it to your Android phone and install manually  
    انقله إلى هاتفك وقم بتثبيته يدويًا 
 
----
-
-## License | الترخيص
-
-This project is released under the **MIT License**.  
 **هذا المشروع مرخَّص برخصة MIT مفتوحة المصدر.**
 
 ---
 
 Made with ❤️ for Arabic-speaking teams.  
 **صُنع بحب لخدمة الناطقين بالعربية.**
+
 
 
